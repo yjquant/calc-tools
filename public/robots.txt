@@ -1,0 +1,5 @@
+# CLONE: replace quantcalcs.com
+User-agent: *
+Allow: /
+
+Sitemap: https://quantcalcs.com/sitemap.xml

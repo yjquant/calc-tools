@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================================
+  TOOL #7 — Liquidation Price Calculator (crypto satellite cluster anchor).
+  Cloned from reference-tool-template.html. Shared house style is UNCHANGED.
+  Only inputs / math / copy / schema / related-links differ.
+  Differentiation vs incumbents (= the E-E-A-T edge): isolated-vs-cross made
+  explicit, optional fee adjustment, funding excluded *and said so*, and the
+  formula is shown openly. Transparency is the credibility signal.
+  CLONE markers show what to change for the next crypto tool.
+  ============================================================================
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Liquidation Price Calculator — Leverage, Long & Short</title>
+<meta name="description" content="Free liquidation price calculator for leveraged crypto positions. Isolated margin, maintenance margin and fees included. See the exact % move to liquidation.">
+
+<link rel="canonical" href="https://quantcalcs.com/liquidation-price-calculator/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Liquidation Price Calculator">
+<meta property="og:description" content="Find your liquidation price and the exact % adverse move that triggers it.">
+<meta property="og:url" content="https://quantcalcs.com/liquidation-price-calculator/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Liquidation Price Calculator",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": "https://quantcalcs.com/liquidation-price-calculator/"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How is a liquidation price calculated?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For an isolated-margin position, liquidation happens when losses reduce your margin to the maintenance requirement. A long is liquidated when price falls by roughly (1/leverage minus the maintenance margin rate); a short when it rises by the same fraction." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does cross margin change the liquidation price?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. This calculator models isolated margin. In cross margin your whole wallet balance backs the position, so liquidation is usually much further away and depends on your total balance, not just this trade." }
+        },
+        {
+          "@type": "Question",
+          "name": "Are funding fees included?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. Funding is paid or received over time and cannot be a single number. Funding paid on a losing side slowly erodes margin, moving real liquidation slightly closer than this estimate." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Tools", "item": "https://quantcalcs.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Liquidation Price Calculator", "item": "https://quantcalcs.com/liquidation-price-calculator/" }
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- Shared analytics / kill-gate hook (Search Console verified at domain level). -->
+<!-- <script defer data-domain="quantcalcs.com" src="https://plausible.io/js/script.js"></script> -->
+
+<style>
+  /* ---- SHARED HOUSE STYLE — identical to the reference template ---------- */
+  :root{
+    --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+    --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+    --warn:#e2b04a; --radius:14px; --maxw:720px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  header.site{border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--accent)}
+  nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+  nav.top a:hover{color:var(--ink)}
+  .crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+  .crumb a{color:var(--muted);text-decoration:none}
+  h1{font-size:clamp(1.6rem,4.5vw,2.2rem);letter-spacing:-.02em;line-height:1.15;margin:.5em 0 .2em}
+  .lede{color:var(--muted);margin:0 0 26px;font-size:1.02rem}
+  .tool{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--paper)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);border-color:transparent}
+  .field .hint{font-size:.72rem;color:var(--muted);margin-top:4px}
+  .optional{margin-top:16px;border-top:1px dashed var(--line);padding-top:16px}
+  .optional .cap{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  /* signature: instrument readout */
+  .readout{margin-top:20px;background:var(--panel);border-radius:12px;padding:20px 22px;color:#c9d2dc}
+  .readout .k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#8a97a6}
+  .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .readout .v.warn{color:var(--warn)}
+  .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+  section.copy{margin:38px 0}
+  section.copy h2{font-size:1.2rem;letter-spacing:-.01em;margin:0 0 10px}
+  .formula{font-family:var(--mono);font-size:.9rem;background:#f4f4ef;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto}
+  .note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+  details{border-top:1px solid var(--line);padding:14px 0}
+  details summary{cursor:pointer;font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+  details[open] summary::before{content:"– "}
+  .risk{background:#fbf6ea;border:1px solid #ecdcb4;border-radius:10px;padding:14px 16px;font-size:.9rem;margin:26px 0}
+  .byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+  .ad{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:#aab0b8;font-size:.78rem;margin:26px 0}
+  .aff{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:.92rem;background:#fff}
+  .related{margin:34px 0}
+  .related h2{font-size:1.05rem;margin:0 0 12px}
+  .related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.related ul{grid-template-columns:1fr}}
+  .related a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:.92rem}
+  .related a:hover{border-color:var(--accent)}
+  .related a b{color:var(--accent-ink)}
+  footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to calculator</a>
+
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="crumb"><a href="/">Tools</a> &rsaquo; Liquidation price calculator</p>
+
+  <h1>Liquidation Price Calculator</h1>
+  <p class="lede">Find the price at which a leveraged position is liquidated, and the exact adverse move that gets you there. Isolated margin, with maintenance margin and fees.</p>
+
+  <!-- ================= THE TOOL ================= -->
+  <div class="tool" id="tool">
+    <div class="grid">
+      <div class="field">
+        <label for="dir">Direction</label>
+        <select id="dir">
+          <option value="long" selected>Long</option>
+          <option value="short">Short</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e">Entry price</label>
+        <input id="e" type="number" inputmode="decimal" value="60000" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="l">Leverage (x)</label>
+        <input id="l" type="number" inputmode="decimal" value="10" min="1" step="0.5">
+      </div>
+      <div class="field">
+        <label for="m">Maintenance margin (%)</label>
+        <input id="m" type="number" inputmode="decimal" value="0.5" min="0" step="0.1">
+        <div class="hint">Exchange-specific; often 0.4–1% at low tiers.</div>
+      </div>
+    </div>
+
+    <div class="optional">
+      <div class="cap">Optional — for margin & fee-adjusted result</div>
+      <div class="grid">
+        <div class="field">
+          <label for="sz">Position size (USD notional)</label>
+          <input id="sz" type="number" inputmode="decimal" value="10000" min="0" step="any">
+        </div>
+        <div class="field">
+          <label for="fee">Round-trip fee (%)</label>
+          <input id="fee" type="number" inputmode="decimal" value="0" min="0" step="0.01">
+          <div class="hint">Open + close taker fees, e.g. 0.10.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- signature instrument readout -->
+    <div class="readout" aria-live="polite">
+      <div class="k">Liquidation price</div>
+      <div class="v" id="out">$0</div>
+      <div class="sub" id="sub">—</div>
+    </div>
+  </div>
+
+  <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
+
+  <!-- ================= CONTENT ================= -->
+  <section class="copy">
+    <h2>How the liquidation price works</h2>
+    <p>With leverage, you post only a fraction of the position as margin &mdash; 10&times; leverage means 10% margin. Your position is liquidated when losses eat that margin down to the exchange&rsquo;s <em>maintenance margin</em>, the minimum it insists you keep. So the distance to liquidation is set by how thin your margin is (your leverage) minus the small maintenance buffer.</p>
+    <div class="formula">
+      Long&nbsp; liq = Entry &times; (1 &minus; 1/Leverage + MMR + fee)<br>
+      Short liq = Entry &times; (1 + 1/Leverage &minus; MMR &minus; fee)
+    </div>
+    <p class="note">The intuitive version: the adverse move to liquidation &asymp; (1/Leverage &minus; MMR &minus; fee). At 10&times; with 0.5% maintenance, that&rsquo;s about a 9.5% move against you.</p>
+  </section>
+
+  <!-- AFFILIATE SLOT — kept empty until a relevant, disclosed partner exists (see _template/CLAUDE.md §5).
+  <div class="aff"><b>Related:</b> Position sizing and stop placement decide whether that 9.5% ever gets hit.</div>
+  -->
+
+  <section class="copy">
+    <h2>Isolated vs cross margin</h2>
+    <p>This calculator models <strong>isolated margin</strong>, where only the margin assigned to this trade is at risk. In <strong>cross margin</strong>, your entire wallet balance backs the position, so liquidation sits much further away and depends on your <em>total</em> balance and any other open positions &mdash; a single-position formula can&rsquo;t capture it. Treat the isolated result as the conservative, per-trade case.</p>
+  </section>
+
+  <section class="copy">
+    <h2>What this excludes</h2>
+    <p>Funding is not included, because it is paid or received repeatedly over time and isn&rsquo;t a single figure. On the side that pays funding, it slowly drains margin and moves real liquidation slightly closer than the estimate. Exchanges also use <em>tiered</em> maintenance margin that rises with position size, so very large positions liquidate a little sooner than a flat rate implies.</p>
+  </section>
+
+  <section class="copy">
+    <h2>Questions</h2>
+    <details open>
+      <summary>How is a liquidation price calculated?</summary>
+      <p>For an isolated-margin position, liquidation happens when losses reduce your margin to the maintenance requirement. A long is liquidated when price falls by roughly (1/leverage minus the maintenance margin rate); a short when it rises by the same fraction.</p>
+    </details>
+    <details>
+      <summary>Does cross margin change the liquidation price?</summary>
+      <p>Yes. This calculator models isolated margin. In cross margin your whole wallet balance backs the position, so liquidation is usually much further away and depends on your total balance, not just this trade.</p>
+    </details>
+    <details>
+      <summary>Are funding fees included?</summary>
+      <p>No. Funding is paid or received over time and cannot be a single number. Funding paid on a losing side slowly erodes margin, moving real liquidation slightly closer than this estimate.</p>
+    </details>
+  </section>
+
+  <div class="risk"><strong>Risk note.</strong> Leveraged trading can lose your entire margin &mdash; and liquidation often happens faster than expected during volatile moves. These figures are estimates for education and risk-planning, not trading or financial advice. Your exchange&rsquo;s own liquidation engine is the authority for your account.</div>
+
+  <!-- E-E-A-T byline — CLONE: put your real name/credentials. This is what lets a
+       new site clear the YMYL trust bar competitors can't. -->
+  <p class="byline">Method reviewed by <strong>YJ Quant</strong> &mdash; a quantitative researcher in applied quantitative modeling. Formula and assumptions shown above; corrections welcome via <a href="mailto:hello@quantcalcs.com">email</a>.</p>
+
+  <nav class="related" aria-label="Related tools">
+    <h2>More calculators</h2>
+    <ul>
+      <li><a href="/compound-interest-calculator/"><b>Compound interest</b> &mdash; growth of savings with regular contributions</a></li>
+      <li><a href="/#crypto"><b>All crypto tools</b> &mdash; browse the crypto calculators</a></li>
+    </ul>
+  </nav>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <p>Estimates for general information only, not financial advice. &middot; <a href="/">All tools</a> &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   LIQUIDATION MATH (isolated, linear/USDT-margined perpetual).
+   adverse fraction to liq  f = 1/L - mmr - fee   (fee = round-trip, as fraction)
+   long  liq = E*(1 - f)      short liq = E*(1 + f)
+   Guards: L>=1; if f<=0 the maintenance+fees already exceed the margin buffer
+   (no valid liquidation from price alone) -> report instead of a wrong number.
+   ============================================================================ */
+(function(){
+  var el={}, ids=["dir","e","l","m","sz","fee"];
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var out=document.getElementById("out"), sub=document.getElementById("sub");
+  var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
+
+  function calc(){
+    var dir=el.dir.value, E=+el.e.value||0, L=+el.l.value||0,
+        mmr=(+el.m.value||0)/100, fee=(+el.fee.value||0)/100, sz=+el.sz.value||0;
+
+    out.classList.remove("warn");
+    if(E<=0||L<1){ out.textContent="—"; sub.textContent="Enter an entry price and leverage of 1 or more."; return; }
+
+    var f = 1/L - mmr - fee;               // adverse move fraction to liquidation
+    if(f<=0){
+      out.classList.add("warn");
+      out.textContent="No liquidation";
+      sub.textContent="At this leverage the maintenance margin + fees already exceed the price buffer.";
+      return;
+    }
+    var liq = dir==="long" ? E*(1-f) : E*(1+f);
+    if(liq<0) liq=0;
+
+    out.textContent=money.format(liq);
+    var moveTxt=(f*100).toFixed(2)+"% "+(dir==="long"?"drop":"rise")+" to liquidation";
+    var marginTxt = sz>0 ? "  ·  Initial margin "+money.format(sz/L) : "";
+    sub.textContent=moveTxt+marginTxt;
+  }
+  ids.forEach(function(i){el[i].addEventListener("input",calc);});
+  calc();
+})();
+</script>
+</body>
+</html>

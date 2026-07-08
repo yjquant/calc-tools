@@ -1,0 +1,68 @@
+/* ===========================================================================
+   SHARED HOUSE STYLE  —  the single source of truth for the hub's look.
+   Shell pages (index, about, privacy) link this file. New tools can link it
+   too (recommended) or keep the identical CSS inlined for full portability.
+   Direction: "measured instrument" — cool paper + ink + one petrol accent,
+   system fonts (zero requests = near-instant = an SEO feature), the numeric
+   readout treated like a lab instrument.
+   =========================================================================== */
+:root{
+  --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+  --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+  --warn:#e2b04a; --radius:14px; --maxw:720px; --wide:960px;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+.wrap.wide{max-width:var(--wide)}
+a{color:var(--accent-ink);text-underline-offset:2px}
+
+/* header / footer / breadcrumb */
+header.site{border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0;max-width:var(--wide);margin:0 auto;padding-left:20px;padding-right:20px}
+.brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+.brand span{color:var(--accent)}
+nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+nav.top a:hover{color:var(--ink)}
+.crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+.crumb a{color:var(--muted);text-decoration:none}
+footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+
+/* typography */
+h1{font-size:clamp(1.7rem,4.8vw,2.4rem);letter-spacing:-.02em;line-height:1.12;margin:.5em 0 .2em}
+h2{font-size:1.2rem;letter-spacing:-.01em;margin:1.6em 0 .5em}
+.lede{color:var(--muted);margin:0 0 26px;font-size:1.05rem}
+section.copy{margin:34px 0}
+
+/* hero (home) */
+.hero{padding:44px 0 8px}
+.hero .tag{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.hero p{max-width:60ch}
+
+/* tool grid (home) */
+.cluster{margin:30px 0}
+.cluster h2{margin-bottom:4px}
+.cluster .cnote{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+.tools{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.tools{grid-template-columns:1fr}}
+.tools a{display:block;border:1px solid var(--line);border-radius:12px;padding:16px 18px;text-decoration:none;color:var(--ink);background:#fff;transition:border-color .12s}
+.tools a:hover{border-color:var(--accent)}
+.tools a b{display:block;font-size:1rem;margin-bottom:3px}
+.tools a span{color:var(--muted);font-size:.88rem}
+.soon{list-style:none;padding:0;margin:10px 0 0;color:var(--muted);font-size:.9rem}
+.soon li{padding:3px 0}
+.soon li::before{content:"◦ ";color:var(--accent);font-family:var(--mono)}
+
+/* trust strip / byline / notes */
+.trust{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:24px 0;font-size:.92rem}
+.trust b{color:var(--accent-ink)}
+.byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+.note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+dl.qa dt{font-weight:600;margin-top:16px}
+dl.qa dd{margin:4px 0 0;color:var(--muted)}
+
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

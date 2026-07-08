@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================================
+  REFERENCE MICRO-TOOL TEMPLATE  —  clone this file per new tool.
+  Stack: dependency-free static HTML/CSS/vanilla-JS (max durability, top CWV).
+  Every "CLONE:" comment marks something you change for a new tool.
+  Everything else is the shared house style — keep it identical across tools.
+  ============================================================================
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- CLONE: title (<=60 chars, lead with the exact search phrase people type) -->
+<title>Compound Interest Calculator — Daily, Monthly & Yearly</title>
+
+<!-- CLONE: meta description (<=155 chars, promise the answer, natural keywords) -->
+<meta name="description" content="Free compound interest calculator. See how savings grow with monthly contributions and daily, monthly, or yearly compounding. Instant results, no signup.">
+
+<!-- CLONE: canonical URL to this tool's page -->
+<link rel="canonical" href="https://quantcalcs.com/compound-interest-calculator/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+
+<!-- Open Graph / Twitter — CLONE the url/title/description -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Compound Interest Calculator">
+<meta property="og:description" content="See how your savings grow. Instant, free, no signup.">
+<meta property="og:url" content="https://quantcalcs.com/compound-interest-calculator/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!--
+  STRUCTURED DATA (JSON-LD). Three schemas:
+  1) WebApplication — tells Google this page IS a tool.
+  2) FAQPage — the FAQ block below MUST match this word-for-word (rich results).
+  3) BreadcrumbList — hub > tool.
+  CLONE every name/description/url and the Q&A pairs.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Compound Interest Calculator",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": "https://quantcalcs.com/compound-interest-calculator/"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How is compound interest calculated?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Compound interest is calculated on both your original principal and the interest already added. Each period, interest is applied to the running balance, so growth accelerates over time." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does compounding frequency change the result?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. More frequent compounding (daily vs yearly) produces a slightly higher balance because interest is added to the balance more often." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Tools", "item": "https://quantcalcs.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Compound Interest Calculator", "item": "https://quantcalcs.com/compound-interest-calculator/" }
+      ]
+    }
+  ]
+}
+</script>
+
+<!--
+  ANALYTICS / KILL-GATE HOOK (shared across all tools).
+  Paste your privacy-analytics snippet here (Plausible/Umami/GA4).
+  Google Search Console is verified once at the domain level (DNS TXT) and is
+  the PRIMARY kill-gate data source: impressions + clicks per tool page.
+-->
+<!-- <script defer data-domain="quantcalcs.com" src="https://plausible.io/js/script.js"></script> -->
+
+<style>
+  /* ---- SHARED HOUSE STYLE (keep identical across every tool) -------------
+     Direction: "measured instrument". A calculator's job is trustworthy
+     numbers, so the result is treated like a lab-instrument readout: a dark
+     precision panel with a monospaced figure. Palette is cool paper + ink +
+     a single petrol accent (deliberately not the cream/terracotta or
+     acid-green AI defaults). Fonts are system stacks — zero requests, so the
+     page is near-instant, which is itself an SEO feature. */
+  :root{
+    --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+    --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+    --radius:14px; --maxw:720px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+
+  /* header / breadcrumb */
+  header.site{border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--accent)}
+  nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+  nav.top a:hover{color:var(--ink)}
+  .crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+  .crumb a{color:var(--muted);text-decoration:none}
+
+  /* hero = the tool itself */
+  h1{font-size:clamp(1.6rem,4.5vw,2.2rem);letter-spacing:-.02em;line-height:1.15;margin:.5em 0 .2em}
+  .lede{color:var(--muted);margin:0 0 26px;font-size:1.02rem}
+
+  .tool{border:1px solid var(--line);border-radius:var(--radius);background:#fff;
+    padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:10px;font:inherit;background:var(--paper)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);border-color:transparent}
+
+  /* the "instrument readout" — this is the page's signature element */
+  .readout{margin-top:20px;background:var(--panel);border-radius:12px;padding:20px 22px;color:#c9d2dc}
+  .readout .k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#8a97a6}
+  .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);
+    font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+
+  /* content sections (needed to rank — a bare tool ranks poorly) */
+  section.copy{margin:38px 0}
+  section.copy h2{font-size:1.2rem;letter-spacing:-.01em;margin:0 0 10px}
+  details{border-top:1px solid var(--line);padding:14px 0}
+  details summary{cursor:pointer;font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+  details[open] summary::before{content:"– "}
+
+  /* monetization slots */
+  .ad{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;
+    color:#aab0b8;font-size:.78rem;margin:26px 0}
+  .aff{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;
+    padding:14px 16px;margin:22px 0;font-size:.92rem;background:#fff}
+
+  /* related tools = internal linking (topical authority + crawl depth) */
+  .related{margin:34px 0}
+  .related h2{font-size:1.05rem;margin:0 0 12px}
+  .related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.related ul{grid-template-columns:1fr}}
+  .related a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    text-decoration:none;color:var(--ink);font-size:.92rem}
+  .related a:hover{border-color:var(--accent)}
+  .related a b{color:var(--accent-ink)}
+
+  footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to calculator</a>
+
+<!-- HEADER — shared. CLONE only the nav links as your tool list grows. -->
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- CLONE breadcrumb label -->
+  <p class="crumb"><a href="/">Tools</a> &rsaquo; Compound interest calculator</p>
+
+  <!-- CLONE h1 + lede (h1 should contain the primary search phrase) -->
+  <h1>Compound Interest Calculator</h1>
+  <p class="lede">See how a starting balance plus regular contributions grows over time, with daily, monthly, or yearly compounding.</p>
+
+  <!-- ================= THE TOOL (hero) ================= -->
+  <div class="tool" id="tool">
+    <div class="grid">
+      <div class="field">
+        <label for="p">Starting amount</label>
+        <input id="p" type="number" inputmode="decimal" value="10000" min="0" step="100">
+      </div>
+      <div class="field">
+        <label for="c">Monthly contribution</label>
+        <input id="c" type="number" inputmode="decimal" value="300" min="0" step="10">
+      </div>
+      <div class="field">
+        <label for="r">Annual interest rate (%)</label>
+        <input id="r" type="number" inputmode="decimal" value="6" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="y">Years</label>
+        <input id="y" type="number" inputmode="numeric" value="20" min="1" max="80" step="1">
+      </div>
+      <div class="field">
+        <label for="f">Compounding</label>
+        <select id="f">
+          <option value="365">Daily</option>
+          <option value="12" selected>Monthly</option>
+          <option value="1">Yearly</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- signature: instrument readout -->
+    <div class="readout" aria-live="polite">
+      <div class="k">Final balance</div>
+      <div class="v" id="out">$0</div>
+      <div class="sub" id="breakdown">—</div>
+    </div>
+  </div>
+
+  <!-- AD SLOT (above-the-fold-adjacent). PLACEHOLDER — paste AdSense unit after approval. -->
+  <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
+
+  <!-- ================= CONTENT (required to rank) ================= -->
+  <section class="copy">
+    <h2>How compound interest works</h2>
+    <p>Compound interest earns returns on both your original money and the returns it has already earned. Because each period&rsquo;s interest is added to the balance before the next period is calculated, growth speeds up the longer you leave it &mdash; the effect people call &ldquo;interest on interest.&rdquo; Contributions add fuel: every deposit starts compounding from the moment it lands.</p>
+  </section>
+
+  <!-- AFFILIATE BLOCK. PLACEHOLDER — often out-earns display ads on tool pages. -->
+  <!-- AFFILIATE SLOT — kept empty until a relevant, disclosed partner exists (see _template/CLAUDE.md §5).
+  <div class="aff"><b>Related:</b> Comparing high-yield savings or brokerage accounts is where these numbers become real.</div>
+  -->
+
+  <section class="copy">
+    <h2>A worked example</h2>
+    <p>Start with $10,000, add $300 a month, and earn 6% a year compounded monthly. After 20 years the balance is far more than the deposits alone, because two decades of monthly compounding do most of the work in the final years &mdash; which is why starting early matters more than the exact rate.</p>
+  </section>
+
+  <!-- FAQ — MUST match the FAQPage JSON-LD above word-for-word -->
+  <section class="copy">
+    <h2>Questions</h2>
+    <details open>
+      <summary>How is compound interest calculated?</summary>
+      <p>Compound interest is calculated on both your original principal and the interest already added. Each period, interest is applied to the running balance, so growth accelerates over time.</p>
+    </details>
+    <details>
+      <summary>Does compounding frequency change the result?</summary>
+      <p>Yes. More frequent compounding (daily vs yearly) produces a slightly higher balance because interest is added to the balance more often.</p>
+    </details>
+  </section>
+
+  <!-- RELATED TOOLS = internal links. CLONE: point to your other tools. -->
+  <nav class="related" aria-label="Related tools">
+    <h2>More calculators</h2>
+    <ul>
+      <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included, % move to liquidation</a></li>
+      <li><a href="/#money"><b>All money tools</b> &mdash; browse the money calculators</a></li>
+    </ul>
+  </nav>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <p>Estimates for general information only, not financial advice. &middot; <a href="/">All tools</a> &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   TOOL LOGIC (vanilla JS).  CLONE: replace calc() with your tool's math.
+   Everything reruns on input, so results are instant and there is no button
+   to "submit" — fewer steps, better UX, nothing to break.
+   ============================================================================ */
+(function(){
+  var ids=["p","c","r","y","f"], el={};
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var out=document.getElementById("out"), bd=document.getElementById("breakdown");
+  var fmt=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0});
+
+  function calc(){
+    var P=+el.p.value||0, C=+el.c.value||0, r=(+el.r.value||0)/100,
+        yrs=+el.y.value||0, n=+el.f.value||12;
+    var periods=yrs*n, i=r/n, bal=P, contributed=P;
+    for(var t=0;t<periods;t++){ bal=bal*(1+i)+C; contributed+=C; }
+    var interest=bal-contributed;
+    out.textContent=fmt.format(bal);
+    bd.textContent="Contributed "+fmt.format(contributed)+"  ·  Interest "+fmt.format(interest);
+  }
+  ids.forEach(function(i){el[i].addEventListener("input",calc);});
+  calc();
+})();
+</script>
+</body>
+</html>

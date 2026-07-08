@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  HUB HOMEPAGE. CLONE: replace HUB name, quantcalcs.com, and the tool lists as the
+  portfolio grows. Link only tools that actually exist (no dead links); list
+  in-progress ones as plain text so the site reads as complete + growing.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money & Crypto Calculators — Transparent, Instant, No Signup</title>
+<meta name="description" content="Free, transparent calculators for money and crypto decisions. Every formula is shown, nothing is tracked, and results are instant. Built and reviewed by a quantitative specialist.">
+<link rel="canonical" href="https://quantcalcs.com/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Money & Crypto Calculators">
+<meta property="og:description" content="Transparent calculators for money and crypto decisions. Formulas shown, nothing tracked.">
+<meta property="og:url" content="https://quantcalcs.com/">
+<link rel="stylesheet" href="/style.css">
+
+<!-- WebSite + Person (author = E-E-A-T entity) + ItemList of live tools. -->
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@graph":[
+    {"@type":"WebSite","name":"QuantCalcs","url":"https://quantcalcs.com/"},
+    {"@type":"Person","name":"YJ Quant","jobTitle":"Quantitative researcher","description":"Quantitative researcher in applied quantitative modeling, reviewing the methods behind these calculators.","url":"https://quantcalcs.com/about/","sameAs":["https://github.com/yjquant/calc-tools"]},
+    {"@type":"ItemList","itemListElement":[
+      {"@type":"ListItem","position":1,"name":"Liquidation Price Calculator","url":"https://quantcalcs.com/liquidation-price-calculator/"},
+      {"@type":"ListItem","position":2,"name":"Compound Interest Calculator","url":"https://quantcalcs.com/compound-interest-calculator/"}
+    ]}
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#tools">Skip to tools</a>
+
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap wide">
+  <section class="hero">
+    <div class="tag">Money &amp; crypto · no black boxes</div>
+    <h1>Calculators that show their work.</h1>
+    <p class="lede">Fast, free tools for real money and crypto decisions. Every formula and assumption is on the page, nothing you type ever leaves your browser, and there is no signup.</p>
+  </section>
+
+  <div class="trust">
+    <b>Why trust these:</b> each calculator states its formula and what it excludes, so you can check the math instead of trusting a black box. Methods are reviewed by <strong>YJ Quant</strong>, a quantitative researcher — see <a href="/about/">About</a>.
+  </div>
+
+  <div id="tools"></div>
+
+  <!-- ===== MONEY CLUSTER ===== -->
+  <section class="cluster" id="money">
+    <h2>Money</h2>
+    <p class="cnote">Planning, debt, and investing decisions — with tax and inflation where they matter.</p>
+    <ul class="tools">
+      <li><a href="/compound-interest-calculator/"><b>Compound interest</b><span>Growth of savings with regular contributions</span></a></li>
+    </ul>
+    <ul class="soon">
+      <li>Coast / Barista FIRE — when your savings can coast to retirement</li>
+      <li>Debt payoff: avalanche vs snowball — payoff date and total interest, side by side</li>
+      <li>Mortgage overpayment — what an extra monthly amount saves</li>
+      <li>Lump sum vs dollar-cost averaging — which wins, and when</li>
+      <li>After-tax, inflation-adjusted return — your real return, not the headline</li>
+    </ul>
+  </section>
+
+  <!-- ===== CRYPTO CLUSTER ===== -->
+  <section class="cluster" id="crypto">
+    <h2>Crypto</h2>
+    <p class="cnote">Risk and yield tools for leverage and DeFi — built to be precise about the parts most calculators gloss over.</p>
+    <ul class="tools">
+      <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b><span>Isolated margin, fees included, % move to liquidation</span></a></li>
+    </ul>
+    <ul class="soon">
+      <li>Funding rate / basis — the carry cost of holding a perpetual</li>
+      <li>Impermanent loss with fee breakeven — LP vs simply holding</li>
+      <li>Staking after tax — real yield once tax is taken out</li>
+    </ul>
+  </section>
+
+  <section class="copy">
+    <h2>How this site works</h2>
+    <p>Each tool runs entirely in your browser and is built to answer one question well. Where a calculation involves choices — tax treatment, margin type, fees — the page says which choice it made and why, so the number is auditable. This is deliberately the opposite of a tool that hands you a figure and hopes you don&rsquo;t ask how it got there.</p>
+  </section>
+</div>
+
+<footer class="site">
+  <div class="wrap wide">
+    <p>General information only, not financial advice. &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a> &middot; <a href="mailto:hello@quantcalcs.com">Contact</a></p>
+  </div>
+</footer>
+</body>
+</html>
