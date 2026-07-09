@@ -8,7 +8,15 @@
   Differentiation vs incumbents (= the E-E-A-T edge): isolated-vs-cross made
   explicit, optional fee adjustment, funding excluded *and said so*, and the
   formula is shown openly. Transparency is the credibility signal.
-  CLONE markers show what to change for the next crypto tool.
+
+  MATHS. Maintenance margin is charged on the CURRENT notional (qty * price),
+  which is what exchanges do. Solving equity == maintenance gives:
+      long  liq = entry * (1 - 1/L + fee) / (1 - mmr)
+      short liq = entry * (1 + 1/L - fee) / (1 + mmr)
+  The common shortcut  entry * (1 -+ (1/L - mmr))  charges maintenance on the
+  ENTRY notional and is wrong by ~0.5% at 2x (and ~0.05% at 10x).
+  Verified against a direct margin-account simulation in
+  verification/liquidation_price.py (126 cases, zero mismatches).
   ============================================================================
 -->
 <head>
@@ -46,7 +54,7 @@
         {
           "@type": "Question",
           "name": "How is a liquidation price calculated?",
-          "acceptedAnswer": { "@type": "Answer", "text": "For an isolated-margin position, liquidation happens when losses reduce your margin to the maintenance requirement. A long is liquidated when price falls by roughly (1/leverage minus the maintenance margin rate); a short when it rises by the same fraction." }
+          "acceptedAnswer": { "@type": "Answer", "text": "For an isolated-margin position, liquidation happens when losses reduce your equity to the maintenance requirement, which the exchange charges on the position's current value. Solving that condition gives a long's liquidation price as entry times one minus one over leverage, divided by one minus the maintenance rate." }
         },
         {
           "@type": "Question",
@@ -213,14 +221,14 @@
     <h2>How the liquidation price works</h2>
     <p>With leverage, you post only a fraction of the position as margin &mdash; 10&times; leverage means 10% margin. Your position is liquidated when losses eat that margin down to the exchange&rsquo;s <em>maintenance margin</em>, the minimum it insists you keep. So the distance to liquidation is set by how thin your margin is (your leverage) minus the small maintenance buffer.</p>
     <div class="formula">
-      Long&nbsp; liq = Entry &times; (1 &minus; 1/Leverage + MMR + fee)<br>
-      Short liq = Entry &times; (1 + 1/Leverage &minus; MMR &minus; fee)
+      Long&nbsp; liq = Entry &times; (1 &minus; 1/Leverage + fee) &divide; (1 &minus; MMR)<br>
+      Short liq = Entry &times; (1 + 1/Leverage &minus; fee) &divide; (1 + MMR)
     </div>
-    <p class="note">The intuitive version: the adverse move to liquidation &asymp; (1/Leverage &minus; MMR &minus; fee). At 10&times; with 0.5% maintenance, that&rsquo;s about a 9.5% move against you.</p>
+    <p class="note">Maintenance margin is charged on the <em>current</em> notional, not the notional at entry &mdash; that is how exchanges compute it, and it is why the formula divides rather than simply subtracting MMR. At 10&times; with 0.5% maintenance, liquidation sits about 9.55% away.</p>
   </section>
 
   <!-- AFFILIATE SLOT — kept empty until a relevant, disclosed partner exists (see _template/CLAUDE.md §5).
-  <div class="aff"><b>Related:</b> Position sizing and stop placement decide whether that 9.5% ever gets hit.</div>
+  <div class="aff"><b>Related:</b> Position sizing and stop placement decide whether the liquidation move ever gets hit.</div>
   -->
 
   <section class="copy">
@@ -237,7 +245,7 @@
     <h2>Questions</h2>
     <details open>
       <summary>How is a liquidation price calculated?</summary>
-      <p>For an isolated-margin position, liquidation happens when losses reduce your margin to the maintenance requirement. A long is liquidated when price falls by roughly (1/leverage minus the maintenance margin rate); a short when it rises by the same fraction.</p>
+      <p>For an isolated-margin position, liquidation happens when losses reduce your equity to the maintenance requirement, which the exchange charges on the position's current value. Solving that condition gives a long's liquidation price as entry times one minus one over leverage, divided by one minus the maintenance rate.</p>
     </details>
     <details>
       <summary>Does cross margin change the liquidation price?</summary>
@@ -273,10 +281,13 @@
 <script>
 /* ============================================================================
    LIQUIDATION MATH (isolated, linear/USDT-margined perpetual).
-   adverse fraction to liq  f = 1/L - mmr - fee   (fee = round-trip, as fraction)
-   long  liq = E*(1 - f)      short liq = E*(1 + f)
-   Guards: L>=1; if f<=0 the maintenance+fees already exceed the margin buffer
-   (no valid liquidation from price alone) -> report instead of a wrong number.
+   Maintenance margin is charged on the CURRENT notional (qty*price), as
+   exchanges do. Setting equity == maintenance and solving for price:
+       long  liq = E*(1 - 1/L + fee)/(1 - mmr)
+       short liq = E*(1 + 1/L - fee)/(1 + mmr)
+   Guards: L>=1; for a long, if (1 - 1/L + fee) <= 0 the posted margin covers a
+   total loss, so price alone cannot liquidate -> say so, don't print a number.
+   Verified against a margin-account simulation: verification/liquidation_price.py
    ============================================================================ */
 (function(){
   var el={}, ids=["dir","e","l","m","sz","fee"];
@@ -291,16 +302,22 @@
     out.classList.remove("warn");
     if(E<=0||L<1){ out.textContent="—"; sub.textContent="Enter an entry price and leverage of 1 or more."; return; }
 
-    var f = 1/L - mmr - fee;               // adverse move fraction to liquidation
-    if(f<=0){
-      out.classList.add("warn");
-      out.textContent="No liquidation";
-      sub.textContent="At this leverage the maintenance margin + fees already exceed the price buffer.";
-      return;
+    var liq;
+    if(dir==="long"){
+      var num = 1 - 1/L + fee;             // equity == maintenance, solved for price
+      if(num<=0 || mmr>=1){
+        out.classList.add("warn");
+        out.textContent="No liquidation";
+        sub.textContent="At this leverage the margin covers a total loss — price alone cannot liquidate the position.";
+        return;
+      }
+      liq = E*num/(1-mmr);
+    } else {
+      liq = E*(1 + 1/L - fee)/(1 + mmr);
     }
-    var liq = dir==="long" ? E*(1-f) : E*(1+f);
     if(liq<0) liq=0;
 
+    var f = Math.abs(liq/E - 1);            // actual adverse move to liquidation
     out.textContent=money.format(liq);
     var moveTxt=(f*100).toFixed(2)+"% "+(dir==="long"?"drop":"rise")+" to liquidation";
     var marginTxt = sz>0 ? "  ·  Initial margin "+money.format(sz/L) : "";

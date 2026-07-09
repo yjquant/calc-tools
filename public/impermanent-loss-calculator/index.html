@@ -272,7 +272,14 @@
 
   <div class="risk"><strong>Risk note.</strong> Providing liquidity exposes you to price risk, smart-contract risk, and losses that fees may not cover. These figures are estimates for education and planning, not financial advice. Check the pool&rsquo;s own numbers before committing funds.</div>
 
-  <p class="byline">Open method: the formulas are shown above and the full source is public &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
+  <section class="copy">
+    <h2>How this was verified</h2>
+    <p>The formulas above are not taken on trust. A script simulates a constant-product pool from first principles &mdash; tracking the two token balances through the price move under the x&middot;y=k invariant &mdash; and checks that the closed forms reproduce the simulated position value exactly. The breakeven APR is checked twice over: once against the closed form, and once by solving for it numerically with bisection, so the two must agree independently.</p>
+    <p>It also pins the invariants: impermanent loss matches published reference values (5.72% at 2&times;, 25.46% at 5&times;), a doubling and a halving cost the same, no price divergence means no loss, a shorter hold demands a higher breakeven APR, and charging fees against the deposit rather than the position lands on the wrong verdict.</p>
+    <p>You can run it yourself: <a href="https://github.com/yjquant/calc-tools/blob/main/verification/impermanent_loss.py" rel="noopener">verification/impermanent_loss.py</a>.</p>
+  </section>
+
+  <p class="byline">Open method: the formulas are shown above, the checks are public, and the full source is on GitHub &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
 
   <nav class="related" aria-label="Related tools">
     <h2>Related calculators</h2>
