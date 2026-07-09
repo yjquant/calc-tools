@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================================
+  TOOL #5 — Funding Rate / Basis Carry.
+  Cloned from _template/reference-tool-template.html. House style UNCHANGED.
+
+  DIFFERENTIATORS (most funding calculators do none of these):
+    1. APR *and* APY. Funding settles 1095x/yr at 8h, so compounding is not a
+       rounding detail: 0.10%/8h is 109.5% APR but 198.75% APY.
+    2. Fee-adjusted breakeven. A carry trade pays the round trip once and
+       collects funding in drips; the tool says how many days until the drip
+       repays the toll.
+    3. Signed correctly. Positive rate: longs pay shorts. Negative: shorts pay
+       longs. The tool states who receives.
+
+  MATHS (verified in verification/funding_rate.py against a settlement sim):
+    periods/yr = 365*24/interval
+    APR = rate * periods/yr
+    APY = (1+rate)^(periods/yr) - 1
+    funding_simple      = notional * rate * n
+    funding_compounded  = notional * ((1+rate)^n - 1)
+    breakeven_periods   = total_fee / rate      (None when rate <= 0)
+  ============================================================================
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Funding Rate Calculator — APR, APY & Fee Breakeven</title>
+<meta name="description" content="Free perpetual funding rate calculator. Convert the 8-hour rate to APR and APY, see total funding paid or received, and find the fee breakeven holding period.">
+
+<link rel="canonical" href="https://quantcalcs.com/funding-rate-calculator/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Funding Rate Calculator with Fee Breakeven">
+<meta property="og:description" content="8-hour rate to APR and APY, plus how long a carry trade takes to repay its fees.">
+<meta property="og:url" content="https://quantcalcs.com/funding-rate-calculator/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Funding Rate Calculator with Fee Breakeven",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": "https://quantcalcs.com/funding-rate-calculator/"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How is a funding rate annualised?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Multiply the rate by the number of settlements in a year. With eight-hour funding that is 1095 settlements, so a rate of 0.01 percent annualises to about 10.95 percent. Reinvesting each payment instead gives the compounded figure, which is higher." }
+        },
+        {
+          "@type": "Question",
+          "name": "Who pays the funding rate?",
+          "acceptedAnswer": { "@type": "Answer", "text": "When the rate is positive, longs pay shorts, because the perpetual is trading above spot. When it is negative the flow reverses and shorts pay longs. The exchange never takes the payment; it passes between traders." }
+        },
+        {
+          "@type": "Question",
+          "name": "How long must I hold a carry trade to cover the fees?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Long enough for the funding collected to exceed the round-trip fees on both legs. Divide the total fee by the funding rate per settlement to get the number of settlements, then convert to days. If the rate turns against you, it never breaks even." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Tools", "item": "https://quantcalcs.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Funding Rate Calculator", "item": "https://quantcalcs.com/funding-rate-calculator/" }
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- Shared analytics / kill-gate hook (Search Console verified at domain level). -->
+<!-- <script defer data-domain="quantcalcs.com" src="https://plausible.io/js/script.js"></script> -->
+
+<style>
+  /* ---- SHARED HOUSE STYLE — identical to the reference template ---------- */
+  :root{
+    --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+    --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+    --warn:#e2b04a; --loss:#e88b7d; --radius:14px; --maxw:720px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  header.site{border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--accent)}
+  nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+  nav.top a:hover{color:var(--ink)}
+  .crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+  .crumb a{color:var(--muted);text-decoration:none}
+  h1{font-size:clamp(1.6rem,4.5vw,2.2rem);letter-spacing:-.02em;line-height:1.15;margin:.5em 0 .2em}
+  .lede{color:var(--muted);margin:0 0 26px;font-size:1.02rem}
+  .tool{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--paper)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);border-color:transparent}
+  .field .hint{font-size:.72rem;color:var(--muted);margin-top:4px}
+  .optional{margin-top:16px;border-top:1px dashed var(--line);padding-top:16px}
+  .optional .cap{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  /* signature: instrument readout */
+  .readout{margin-top:20px;background:var(--panel);border-radius:12px;padding:20px 22px;color:#c9d2dc}
+  .readout .k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#8a97a6}
+  .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .readout .v.neg{color:var(--loss)}
+  .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+  .rows{margin-top:16px;border-top:1px solid #22303c;padding-top:14px;display:grid;gap:8px}
+  .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px;align-items:baseline}
+  .row b{color:#dbe4ec;font-weight:600}
+  .verdict{margin-top:14px;font-family:var(--mono);font-size:.84rem;padding:10px 12px;border-radius:8px;background:#16202a;color:#9fb0bf}
+  .verdict.good{color:var(--readout)} .verdict.bad{color:var(--loss)}
+  @media(max-width:560px){
+    .readout{padding:18px 16px}
+    .row{font-size:.8rem;gap:8px}
+    .row span{flex:1 1 auto;min-width:0}
+    .row b{flex:0 0 auto;white-space:nowrap}
+  }
+  /* --- chart: hand-rolled inline SVG, no library --- */
+  .chartwrap{margin-top:20px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 14px 10px}
+  .chartwrap h3{margin:0 0 2px;font-size:.95rem;letter-spacing:-.01em}
+  .chartwrap .cap{font-size:.78rem;color:var(--muted);margin:0 0 10px}
+  .chart{display:block;width:100%;height:auto}
+  .chart .grid{stroke:var(--line);stroke-width:1}
+  .chart .axis{stroke:#c9c8c1;stroke-width:1}
+  .chart .tick{fill:var(--muted);font-family:var(--mono);font-size:9px}
+  .chart .zero{stroke:#b9b8b1;stroke-width:1}
+  .chart .feeline{stroke:var(--loss);stroke-width:2;stroke-dasharray:5 4}
+  .chart .carry{fill:none;stroke:var(--accent);stroke-width:2.5}
+  .chart .beline{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:.6}
+  .chart .marker{fill:var(--panel);stroke:#fff;stroke-width:2}
+  .chart .lbl{font-family:var(--sans);font-size:10px;font-weight:600}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.76rem;color:var(--muted);margin-top:6px}
+  .legend i{display:inline-block;width:16px;height:2.5px;vertical-align:middle;margin-right:5px;border-radius:2px}
+  .legend .k1{background:var(--accent)} .legend .k2{background:var(--loss)}
+  section.copy{margin:38px 0}
+  section.copy h2{font-size:1.2rem;letter-spacing:-.01em;margin:0 0 10px}
+  .formula{font-family:var(--mono);font-size:.9rem;background:#f4f4ef;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.9}
+  .note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+  details{border-top:1px solid var(--line);padding:14px 0}
+  details summary{cursor:pointer;font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+  details[open] summary::before{content:"– "}
+  .risk{background:#fbf6ea;border:1px solid #ecdcb4;border-radius:10px;padding:14px 16px;font-size:.9rem;margin:26px 0}
+  .byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+  .ad{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:#aab0b8;font-size:.78rem;margin:26px 0}
+  .related{margin:34px 0}
+  .related h2{font-size:1.05rem;margin:0 0 12px}
+  .related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.related ul{grid-template-columns:1fr}}
+  .related a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:.92rem}
+  .related a:hover{border-color:var(--accent)}
+  .related a b{color:var(--accent-ink)}
+  footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to calculator</a>
+
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="crumb"><a href="/">Tools</a> &rsaquo; Funding rate calculator</p>
+
+  <h1>Funding Rate Calculator</h1>
+  <p class="lede">Turn a perpetual&rsquo;s funding rate into an annual figure, see what it pays over your holding period, and find how long a carry trade must run to repay its fees.</p>
+
+  <!-- ================= THE TOOL ================= -->
+  <div class="tool" id="tool">
+    <div class="grid">
+      <div class="field">
+        <label for="not">Position size (USD notional)</label>
+        <input id="not" type="number" inputmode="decimal" value="10000" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="rate">Funding rate per interval (%)</label>
+        <input id="rate" type="number" inputmode="decimal" value="0.01" step="any">
+        <div class="hint">Positive: longs pay. Negative: shorts pay.</div>
+      </div>
+      <div class="field">
+        <label for="side">Your side</label>
+        <select id="side">
+          <option value="long">Long</option>
+          <option value="short" selected>Short</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="iv">Settlement interval</label>
+        <select id="iv">
+          <option value="1">Every 1 hour</option>
+          <option value="4">Every 4 hours</option>
+          <option value="8" selected>Every 8 hours</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="days">Days held</label>
+        <input id="days" type="number" inputmode="numeric" value="30" min="1" step="1">
+      </div>
+    </div>
+
+    <div class="optional">
+      <div class="cap">Optional &mdash; for the fee breakeven</div>
+      <div class="grid">
+        <div class="field">
+          <label for="fee">Total round-trip fee (%)</label>
+          <input id="fee" type="number" inputmode="decimal" value="0.2" min="0" step="0.01">
+          <div class="hint">Both legs, in and out. A cash-and-carry pays twice.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- signature instrument readout -->
+    <div class="readout" aria-live="polite">
+      <div class="k">Funding over the period</div>
+      <div class="v" id="out">&mdash;</div>
+      <div class="sub" id="sub">&mdash;</div>
+
+      <div class="rows">
+        <div class="row"><span>Annualised (APR)</span><b id="rApr">&mdash;</b></div>
+        <div class="row"><span>Annualised (APY, compounded)</span><b id="rApy">&mdash;</b></div>
+        <div class="row"><span>Settlements in the period</span><b id="rN">&mdash;</b></div>
+        <div class="row"><span>Per settlement</span><b id="rPer">&mdash;</b></div>
+        <div class="row"><span>Round-trip fees</span><b id="rFee">&mdash;</b></div>
+        <div class="row"><span>Fee breakeven</span><b id="rBe">&mdash;</b></div>
+      </div>
+      <div class="verdict" id="verdict">&mdash;</div>
+    </div>
+
+    <!-- CHART: cumulative funding against the one-off fee line. -->
+    <div class="chartwrap">
+      <h3>When the carry repays the toll</h3>
+      <p class="cap">Funding accumulates each settlement; fees are paid once, up front. The crossing is your breakeven.</p>
+      <svg class="chart" viewBox="0 0 700 300" role="img" aria-labelledby="cTitle cDesc">
+        <title id="cTitle">Cumulative funding compared with the round-trip fee</title>
+        <desc id="cDesc">Funding collected accumulates over the holding period. Where it crosses the flat fee line, the trade has repaid its costs.</desc>
+        <g id="cGrid"></g>
+        <line id="cFee" class="feeline"></line>
+        <path id="cCarry" class="carry"></path>
+        <g id="cMark"></g>
+        <g id="cAxis"></g>
+      </svg>
+      <div class="legend">
+        <span><i class="k1"></i>Cumulative funding</span>
+        <span><i class="k2"></i>Round-trip fees</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
+
+  <!-- ================= CONTENT ================= -->
+  <section class="copy">
+    <h2>What the funding rate is</h2>
+    <p>A perpetual future has no expiry, so nothing forces its price back to spot. Funding is the tether: at fixed intervals, usually every eight hours, one side pays the other. When the perp trades above spot the rate is positive and <strong>longs pay shorts</strong>; when it trades below, the flow reverses. The exchange takes none of it &mdash; the payment passes between traders, which is why a market-neutral position can harvest it.</p>
+    <div class="formula">
+      settlements per year &nbsp;= &nbsp;365 &times; 24 &divide; interval&nbsp;hours<br>
+      APR &nbsp;= &nbsp;rate &times; settlements per year<br>
+      APY &nbsp;= &nbsp;(1 + rate)<sup>settlements per year</sup> &minus; 1
+    </div>
+  </section>
+
+  <section class="copy">
+    <h2>Why APR understates it</h2>
+    <p>At eight-hour funding there are <strong>1095 settlements a year</strong>. That is a lot of compounding, and treating the annual figure as a simple multiple quietly loses money on paper. A rate of 0.01% per interval is 10.95% APR but 11.57% APY. Push the rate to 0.10% &mdash; not unusual when the market is euphoric &mdash; and the same arithmetic gives <strong>109.5% APR against 198.75% APY</strong>. The gap is nearly the whole figure again.</p>
+    <p class="note">Losses compound more gently than gains: each payment shrinks the base the next one lands on. So a payer of funding suffers slightly less than the simple number suggests, and a receiver earns slightly more.</p>
+  </section>
+
+  <section class="copy">
+    <h2>The number a carry trade actually turns on</h2>
+    <p>Harvesting funding &mdash; short the perp, hold the spot &mdash; looks like free money until the fees arrive. The toll is paid <strong>once, on both legs, in and out</strong>. The funding arrives in drips. So the trade only makes sense if you hold it long enough for the drips to cover the toll:</p>
+    <div class="formula">
+      breakeven settlements &nbsp;= &nbsp;total round-trip fee &divide; rate per settlement<br>
+      breakeven days &nbsp;= &nbsp;breakeven settlements &times; interval &divide; 24
+    </div>
+    <p>At a 0.20% all-in round trip and a 0.01% eight-hour rate, that is 20 settlements &mdash; nearly <strong>seven days</strong> before the position has earned back its own costs. Enter and exit inside that window and the carry was a fee-generating exercise. Worse, the rate is not fixed: it resets every interval and can flip negative, at which point the position pays instead of collects and the breakeven recedes for good.</p>
+  </section>
+
+  <section class="copy">
+    <h2>What this excludes</h2>
+    <p>The funding rate here is held constant, and in reality it is re-set every interval from the perp&rsquo;s premium to spot. Historical funding has been strongly regime-dependent, with sustained positive rates concentrated in bull markets and negative stretches during drawdowns, so an annualised figure taken from today&rsquo;s rate is a snapshot rather than a forecast. Also excluded: slippage, the spot leg&rsquo;s borrowing or custody costs, margin requirements on the short, and the liquidation risk that a delta-neutral position still carries if the two legs are margined separately.</p>
+  </section>
+
+  <section class="copy">
+    <h2>Questions</h2>
+    <details open>
+      <summary>How is a funding rate annualised?</summary>
+      <p>Multiply the rate by the number of settlements in a year. With eight-hour funding that is 1095 settlements, so a rate of 0.01 percent annualises to about 10.95 percent. Reinvesting each payment instead gives the compounded figure, which is higher.</p>
+    </details>
+    <details>
+      <summary>Who pays the funding rate?</summary>
+      <p>When the rate is positive, longs pay shorts, because the perpetual is trading above spot. When it is negative the flow reverses and shorts pay longs. The exchange never takes the payment; it passes between traders.</p>
+    </details>
+    <details>
+      <summary>How long must I hold a carry trade to cover the fees?</summary>
+      <p>Long enough for the funding collected to exceed the round-trip fees on both legs. Divide the total fee by the funding rate per settlement to get the number of settlements, then convert to days. If the rate turns against you, it never breaks even.</p>
+    </details>
+  </section>
+
+  <div class="risk"><strong>Risk note.</strong> Funding rates change every settlement and can reverse without warning. A delta-neutral carry still carries liquidation, exchange, and execution risk. These figures are estimates for education and planning, not trading or financial advice.</div>
+
+  <section class="copy">
+    <h2>How this was verified</h2>
+    <p>The closed forms are checked against a settlement-by-settlement simulation: funding is paid one interval at a time, optionally folded back into the position, and the totals must match to the cent across a range of notionals, rates, and holding periods. The breakeven is verified twice over &mdash; once by the formula and once by stepping through settlements until the collected funding covers the fees &mdash; and the two must land on the same interval.</p>
+    <p>It also pins the invariants: eight-hour funding settles 1095 times a year, APY exceeds APR with the gap widening as the rate rises, compounding cushions a payer while it helps a receiver, higher fees push the breakeven further out, and a negative rate reports no breakeven at all rather than a misleading number.</p>
+    <p>You can run it yourself: <a href="https://github.com/yjquant/calc-tools/blob/main/verification/funding_rate.py" rel="noopener">verification/funding_rate.py</a>.</p>
+  </section>
+
+  <p class="byline">Open method: the formulas are shown above, the checks are public, and the full source is on GitHub &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
+
+  <nav class="related" aria-label="Related tools">
+    <h2>More calculators</h2>
+    <ul>
+      <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included</a></li>
+      <li><a href="/position-size-calculator/"><b>Position size</b> &mdash; and whether your stop beats liquidation</a></li>
+      <li><a href="/impermanent-loss-calculator/"><b>Impermanent loss</b> &mdash; LP vs holding, with the fee APR to break even</a></li>
+    </ul>
+  </nav>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <p>General information only, not financial advice. &middot; <a href="/">All tools</a> &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   FUNDING RATE.  Verified in verification/funding_rate.py against a
+   settlement-by-settlement simulation.
+     periodsPerYear = 365*24/interval
+     APR = rate*periodsPerYear
+     APY = (1+rate)^periodsPerYear - 1
+     total (simple)     = notional*rate*n
+     total (compounded) = notional*((1+rate)^n - 1)
+     breakeven periods  = fee/rate    (only when the rate favours you)
+   Sign convention: a positive rate means longs pay shorts. `recv` is the
+   signed amount YOU receive, so a long with a positive rate sees it negative.
+   ============================================================================ */
+(function(){
+  var ids=["not","rate","side","iv","days","fee"], el={};
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var out=document.getElementById("out"), sub=document.getElementById("sub"),
+      rApr=document.getElementById("rApr"), rApy=document.getElementById("rApy"),
+      rN=document.getElementById("rN"), rPer=document.getElementById("rPer"),
+      rFee=document.getElementById("rFee"), rBe=document.getElementById("rBe"),
+      verdict=document.getElementById("verdict");
+  var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
+  function pct(x,d){return (x*100).toFixed(d===undefined?2:d)+"%";}
+
+  /* ---- chart geometry ---- */
+  var W=700,H=300,PL=58,PR=14,PT=16,PB=32;
+  function svgEl(t,a){var e=document.createElementNS("http://www.w3.org/2000/svg",t);
+    for(var k in a) e.setAttribute(k,a[k]); return e;}
+
+  function drawChart(days, iv, perSettle, feeAmt){
+    var g=document.getElementById("cGrid"), mk=document.getElementById("cMark"),
+        ax=document.getElementById("cAxis"), feeLine=document.getElementById("cFee"),
+        carry=document.getElementById("cCarry");
+    [g,mk,ax].forEach(function(n){while(n.firstChild)n.removeChild(n.firstChild);});
+
+    var N = Math.max(1, Math.round(days*24/iv));
+    var totals=[], cum=0, vmax=Math.max(feeAmt, 0), vmin=0;
+    for(var i=0;i<=N;i++){
+      totals.push(cum);
+      if(cum>vmax) vmax=cum;
+      if(cum<vmin) vmin=cum;
+      cum += perSettle;
+    }
+    if(vmax===vmin){ vmax=vmin+1; }
+    var pad=(vmax-vmin)*0.12; vmax+=pad; vmin-=pad;
+
+    function X(i){ return PL + (i/N)*(W-PL-PR); }
+    function Y(v){ return PT + (1-(v-vmin)/(vmax-vmin))*(H-PT-PB); }
+
+    for(var t=0;t<=4;t++){
+      var v=vmin+(vmax-vmin)*t/4, yy=Y(v);
+      g.appendChild(svgEl("line",{x1:PL,y1:yy,x2:W-PR,y2:yy,"class":"grid"}));
+      var lb=svgEl("text",{x:PL-8,y:yy+3,"class":"tick","text-anchor":"end"});
+      lb.textContent = (v<0?"-$":"$") + Math.abs(Math.round(v)); g.appendChild(lb);
+    }
+    if(vmin<0 && vmax>0) g.appendChild(svgEl("line",{x1:PL,y1:Y(0),x2:W-PR,y2:Y(0),"class":"zero"}));
+
+    // one-off fee line
+    feeLine.setAttribute("x1",PL); feeLine.setAttribute("x2",W-PR);
+    feeLine.setAttribute("y1",Y(feeAmt)); feeLine.setAttribute("y2",Y(feeAmt));
+
+    carry.setAttribute("d", totals.map(function(v,i){
+      return (i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); }).join(" "));
+
+    // breakeven crossing
+    if(perSettle>0 && feeAmt>0){
+      var be = feeAmt/perSettle;
+      if(be<=N){
+        mk.appendChild(svgEl("line",{x1:X(be),y1:Y(feeAmt),x2:X(be),y2:H-PB,"class":"beline"}));
+        mk.appendChild(svgEl("circle",{cx:X(be),cy:Y(feeAmt),r:5,"class":"marker"}));
+        var anchor = X(be) > W-150 ? "end" : "start";
+        var t2=svgEl("text",{x:X(be)+(anchor==="end"?-9:9),y:Y(feeAmt)-9,"class":"lbl",
+          "text-anchor":anchor,fill:"var(--accent-ink)"});
+        t2.textContent="breakeven "+(be*iv/24).toFixed(1)+"d"; mk.appendChild(t2);
+      }
+    }
+
+    ax.appendChild(svgEl("line",{x1:PL,y1:H-PB,x2:W-PR,y2:H-PB,"class":"axis"}));
+    for(var k=0;k<=4;k++){
+      var i2=Math.round(N*k/4), xx=X(i2);
+      ax.appendChild(svgEl("line",{x1:xx,y1:H-PB,x2:xx,y2:H-PB+4,"class":"axis"}));
+      var tt=svgEl("text",{x:xx,y:H-PB+15,"class":"tick","text-anchor":"middle"});
+      tt.textContent=(i2*iv/24).toFixed(0)+"d"; ax.appendChild(tt);
+    }
+    var xl=svgEl("text",{x:(PL+W-PR)/2,y:H-4,"class":"tick","text-anchor":"middle"});
+    xl.textContent="days held"; ax.appendChild(xl);
+  }
+
+  function calc(){
+    var N0=+el["not"].value||0, raw=(+el.rate.value||0)/100, iv=+el.iv.value||8,
+        days=+el.days.value||0, fee=(+el.fee.value||0)/100, isLong=el.side.value==="long";
+
+    out.classList.remove("neg");
+    verdict.classList.remove("good","bad");
+
+    if(N0<=0||days<=0){
+      out.textContent="—"; sub.textContent="Enter a position size and a holding period.";
+      [rApr,rApy,rN,rPer,rFee,rBe].forEach(function(n){n.textContent="—";});
+      verdict.textContent="—"; drawChart(1,iv,0,0); return;
+    }
+
+    // signed rate from YOUR side: positive rate means longs pay shorts
+    var r = isLong ? -raw : raw;          // r>0 => you receive
+    var ppy = 365*24/iv;
+    var n = days*24/iv;
+
+    var perSettle = N0*r;
+    var total = N0*r*n;                    // simple, position size held constant
+    var feeAmt = N0*fee;
+
+    if(total<0) out.classList.add("neg");
+    out.textContent=(total>=0?"+":"") + money.format(total);
+    sub.textContent = (r>=0 ? "you receive" : "you pay") + "  ·  " +
+      n.toFixed(0) + " settlements over " + days + "d";
+
+    rApr.textContent = pct(r*ppy,2);
+    rApy.textContent = pct(Math.pow(1+r,ppy)-1,2);
+    rN.textContent   = n.toFixed(0);
+    rPer.textContent = (perSettle>=0?"+":"") + money.format(perSettle);
+    rFee.textContent = money.format(feeAmt);
+
+    if(r>0 && fee>0){
+      var bePeriods = fee/r, beDays = bePeriods*iv/24;
+      rBe.textContent = beDays.toFixed(1)+" days";
+      if(beDays<=days){
+        verdict.classList.add("good");
+        verdict.textContent = "Fees repaid after " + beDays.toFixed(1) +
+          " days; net " + money.format(total-feeAmt) + " over " + days + "d.";
+      } else {
+        verdict.classList.add("bad");
+        verdict.textContent = "Held " + days + "d but fees need " + beDays.toFixed(1) +
+          " days to repay — net " + money.format(total-feeAmt) + ".";
+      }
+    } else if(r<=0){
+      rBe.textContent = "never";
+      verdict.classList.add("bad");
+      verdict.textContent = "Funding runs against you at this rate — the position pays, it does not collect.";
+    } else {
+      rBe.textContent = "—";
+      verdict.textContent = "Add a fee to see the breakeven holding period.";
+    }
+
+    drawChart(days, iv, perSettle, feeAmt);
+  }
+  ids.forEach(function(i){el[i].addEventListener("input",calc);});
+  calc();
+})();
+</script>
+</body>
+</html>
