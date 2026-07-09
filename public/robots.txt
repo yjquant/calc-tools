@@ -2,4 +2,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://quantcalcs.com/sitemap.xml
+Sitemap: https://quantcalcs.com/sitemap.txt
