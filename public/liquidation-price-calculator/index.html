@@ -259,9 +259,13 @@
 
   <div class="risk"><strong>Risk note.</strong> Leveraged trading can lose your entire margin &mdash; and liquidation often happens faster than expected during volatile moves. These figures are estimates for education and risk-planning, not trading or financial advice. Your exchange&rsquo;s own liquidation engine is the authority for your account.</div>
 
-  <!-- E-E-A-T byline — CLONE: put your real name/credentials. This is what lets a
-       new site clear the YMYL trust bar competitors can't. -->
-  <p class="byline">Method reviewed by <strong>YJ Quant</strong> &mdash; a quantitative researcher in applied quantitative modeling. Formula and assumptions shown above; corrections welcome via <a href="mailto:hello@quantcalcs.com">email</a>.</p>
+  <section class="copy">
+    <h2>How this was verified</h2>
+    <p>The formula above is not taken on trust. A script simulates a margin account directly &mdash; marking the position to market, deducting fees, and stepping the price until equity falls to the maintenance requirement &mdash; and checks that the closed form lands on the same price across 126 combinations of leverage, maintenance rate, fee and direction. It also checks the obvious invariants: more leverage liquidates sooner, fees move liquidation closer, and a position whose margin covers a total loss reports no liquidation rather than a wrong number.</p>
+    <p>You can run it yourself: <a href="https://github.com/yjquant/calc-tools/blob/main/verification/liquidation_price.py" rel="noopener">verification/liquidation_price.py</a>.</p>
+  </section>
+
+  <p class="byline">Open method: the formula is shown above, the checks are public, and the full source is on GitHub &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
 
   <nav class="related" aria-label="Related tools">
     <h2>More calculators</h2>
