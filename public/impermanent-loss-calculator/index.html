@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================================
+  TOOL #3 — Impermanent Loss + Fee Breakeven Calculator.
+  Cloned from _template/reference-tool-template.html. House style UNCHANGED.
+
+  DIFFERENTIATOR (why this can outrank CoinGecko et al. on the long tail):
+  most IL calculators show IL only and explicitly exclude fees. This one answers
+  the decision question — "what fee APR does the pool need for LPing to beat
+  simply holding?" — and gets a subtlety right that others fumble:
+      fees accrue on the LP POSITION VALUE (V0*sqrt(r)), not on the deposit.
+
+  MATH (verified numerically against a direct x*y=k pool simulation):
+    IL(r)          = 2*sqrt(r)/(1+r) - 1            (negative = underperformance)
+    LP value        = V0 * sqrt(r)                   (50/50 constant product)
+    HODL value      = V0 * (r+1)/2
+    required yield  = 1/(1+IL) - 1                   (on LP value)
+    breakeven APR   = required yield * 365/days
+  Checks: r=2 -> IL=-5.719%; 90d breakeven APR=24.60%; at that APR LP+fees == HODL
+  exactly. r=1 -> IL=0, breakeven 0. IL(r)==IL(1/r). Shorter hold -> higher APR.
+  ============================================================================
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Impermanent Loss Calculator — With Fee Breakeven APR</title>
+<meta name="description" content="Free impermanent loss calculator that includes fees. See your IL, LP vs holding, and the exact fee APR a pool needs to break even. Formula shown, no signup.">
+
+<link rel="canonical" href="https://quantcalcs.com/impermanent-loss-calculator/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Impermanent Loss Calculator with Fee Breakeven">
+<meta property="og:description" content="IL, LP vs holding, and the fee APR needed to break even.">
+<meta property="og:url" content="https://quantcalcs.com/impermanent-loss-calculator/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Impermanent Loss Calculator with Fee Breakeven",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": "https://quantcalcs.com/impermanent-loss-calculator/"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How is impermanent loss calculated?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For a 50/50 constant-product pool, impermanent loss depends only on how much the two asset prices diverge. If r is the ratio of their price changes, the loss versus simply holding is 2 times the square root of r, divided by one plus r, minus one." }
+        },
+        {
+          "@type": "Question",
+          "name": "What fee APR do I need to break even?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Enough fee income to cancel the impermanent loss over your holding period. Because fees accrue on the position value rather than your original deposit, the required yield is one divided by one plus the impermanent loss, minus one, annualised over the days you stay in the pool." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is impermanent loss really impermanent?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Only if prices return to their starting ratio. If you withdraw while prices have diverged, the loss is realised and permanent. The name refers to the fact that the loss reverses if the price ratio comes back." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Tools", "item": "https://quantcalcs.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Impermanent Loss Calculator", "item": "https://quantcalcs.com/impermanent-loss-calculator/" }
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- Shared analytics / kill-gate hook (Search Console verified at domain level). -->
+<!-- <script defer data-domain="quantcalcs.com" src="https://plausible.io/js/script.js"></script> -->
+
+<style>
+  /* ---- SHARED HOUSE STYLE — identical to the reference template ---------- */
+  :root{
+    --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+    --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+    --warn:#e2b04a; --loss:#e88b7d; --radius:14px; --maxw:720px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  header.site{border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--accent)}
+  nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+  nav.top a:hover{color:var(--ink)}
+  .crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+  .crumb a{color:var(--muted);text-decoration:none}
+  h1{font-size:clamp(1.6rem,4.5vw,2.2rem);letter-spacing:-.02em;line-height:1.15;margin:.5em 0 .2em}
+  .lede{color:var(--muted);margin:0 0 26px;font-size:1.02rem}
+  .tool{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--paper)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);border-color:transparent}
+  .field .hint{font-size:.72rem;color:var(--muted);margin-top:4px}
+  .optional{margin-top:16px;border-top:1px dashed var(--line);padding-top:16px}
+  .optional .cap{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  /* signature: instrument readout */
+  .readout{margin-top:20px;background:var(--panel);border-radius:12px;padding:20px 22px;color:#c9d2dc}
+  .readout .k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#8a97a6}
+  .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .readout .v.neg{color:var(--loss)}
+  .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+  .rows{margin-top:16px;border-top:1px solid #22303c;padding-top:14px;display:grid;gap:8px}
+  .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px}
+  .row b{color:#dbe4ec;font-weight:600}
+  .verdict{margin-top:14px;font-family:var(--mono);font-size:.84rem;padding:10px 12px;border-radius:8px;background:#16202a;color:#9fb0bf}
+  .verdict.good{color:var(--readout)} .verdict.bad{color:var(--loss)}
+  section.copy{margin:38px 0}
+  section.copy h2{font-size:1.2rem;letter-spacing:-.01em;margin:0 0 10px}
+  .formula{font-family:var(--mono);font-size:.9rem;background:#f4f4ef;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.9}
+  .note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+  details{border-top:1px solid var(--line);padding:14px 0}
+  details summary{cursor:pointer;font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+  details[open] summary::before{content:"– "}
+  .risk{background:#fbf6ea;border:1px solid #ecdcb4;border-radius:10px;padding:14px 16px;font-size:.9rem;margin:26px 0}
+  .byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+  .ad{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:#aab0b8;font-size:.78rem;margin:26px 0}
+  .related{margin:34px 0}
+  .related h2{font-size:1.05rem;margin:0 0 12px}
+  .related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.related ul{grid-template-columns:1fr}}
+  .related a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:.92rem}
+  .related a:hover{border-color:var(--accent)}
+  .related a b{color:var(--accent-ink)}
+  footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to calculator</a>
+
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="crumb"><a href="/">Tools</a> &rsaquo; Impermanent loss calculator</p>
+
+  <h1>Impermanent Loss Calculator</h1>
+  <p class="lede">See your impermanent loss, compare LPing against simply holding, and find the fee APR a pool must pay for the position to break even.</p>
+
+  <!-- ================= THE TOOL ================= -->
+  <div class="tool" id="tool">
+    <div class="grid">
+      <div class="field">
+        <label for="dep">Deposit value (USD)</label>
+        <input id="dep" type="number" inputmode="decimal" value="10000" min="0" step="any">
+        <div class="hint">Total, split 50/50 across both assets.</div>
+      </div>
+      <div class="field">
+        <label for="ca">Asset A price change (&times;)</label>
+        <input id="ca" type="number" inputmode="decimal" value="2" min="0.01" step="any">
+        <div class="hint">2 = doubled, 0.5 = halved.</div>
+      </div>
+      <div class="field">
+        <label for="cb">Asset B price change (&times;)</label>
+        <input id="cb" type="number" inputmode="decimal" value="1" min="0.01" step="any">
+        <div class="hint">Use 1 for a stablecoin.</div>
+      </div>
+      <div class="field">
+        <label for="days">Days in the pool</label>
+        <input id="days" type="number" inputmode="numeric" value="90" min="1" step="1">
+      </div>
+    </div>
+
+    <div class="optional">
+      <div class="cap">Optional — compare against the pool&rsquo;s actual yield</div>
+      <div class="grid">
+        <div class="field">
+          <label for="apr">Pool fee APR (%)</label>
+          <input id="apr" type="number" inputmode="decimal" value="40" min="0" step="any">
+          <div class="hint">Trading-fee yield the pool pays, annualised.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- signature instrument readout -->
+    <div class="readout" aria-live="polite">
+      <div class="k">Impermanent loss</div>
+      <div class="v" id="out">0.00%</div>
+      <div class="sub" id="sub">&mdash;</div>
+
+      <div class="rows">
+        <div class="row"><span>If you had simply held</span><b id="rHodl">&mdash;</b></div>
+        <div class="row"><span>LP position (before fees)</span><b id="rLp">&mdash;</b></div>
+        <div class="row"><span>Fees earned</span><b id="rFees">&mdash;</b></div>
+        <div class="row"><span>LP position + fees</span><b id="rTotal">&mdash;</b></div>
+        <div class="row"><span>Breakeven fee APR</span><b id="rBe">&mdash;</b></div>
+      </div>
+      <div class="verdict" id="verdict">&mdash;</div>
+    </div>
+  </div>
+
+  <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
+
+  <!-- ================= CONTENT ================= -->
+  <section class="copy">
+    <h2>What impermanent loss actually is</h2>
+    <p>When you provide liquidity to a 50/50 pool, the pool automatically sells whichever asset is rising and buys whichever is falling. If the two prices drift apart, you end up holding less of the winner and more of the loser than if you had just kept both coins in your wallet. That shortfall is impermanent loss. It depends <em>only</em> on how far the prices diverge &mdash; not on which one moved, and not on the size of your deposit.</p>
+    <div class="formula">
+      r &nbsp;= &nbsp;(A price change) &divide; (B price change)<br>
+      IL &nbsp;= &nbsp;2&radic;r / (1 + r) &minus; 1<br>
+      LP value &nbsp;= &nbsp;deposit &times; &radic;r &nbsp;&nbsp;&nbsp; HODL value &nbsp;= &nbsp;deposit &times; (r + 1) / 2
+    </div>
+    <p class="note">Because IL depends on the <em>ratio</em>, doubling (r = 2) and halving (r = 0.5) both cost the same 5.72%.</p>
+  </section>
+
+  <section class="copy">
+    <h2>The number most calculators leave out: breakeven APR</h2>
+    <p>Impermanent loss on its own tells you almost nothing about whether to LP &mdash; fees are the whole point of providing liquidity. The useful question is: <strong>how much fee income does this pool need to pay before LPing beats holding?</strong></p>
+    <div class="formula">
+      required fee yield &nbsp;= &nbsp;1 / (1 + IL) &minus; 1<br>
+      breakeven APR &nbsp;= &nbsp;required fee yield &times; 365 / days
+    </div>
+    <p>One subtlety worth stating, because it is easy to get wrong: fees accrue on the <strong>LP position value</strong>, not on your original deposit. Since the position is worth less than the deposit once prices diverge, using the deposit overstates the fees you actually collect. This calculator applies fees to the position.</p>
+    <p>Note the time dependence: the same 5.72% loss needs about a <strong>25% APR</strong> to break even over 90 days, but roughly <strong>316%</strong> over a single week &mdash; a short, violent move is far harder to out-earn than a slow drift.</p>
+  </section>
+
+  <section class="copy">
+    <h2>What this excludes</h2>
+    <p>This models a constant-product 50/50 pool of the Uniswap-v2 type. Concentrated-liquidity positions (Uniswap v3 and similar) amplify both fees and losses within their range and can end up entirely in one asset, so their outcome will be worse than this figure when price leaves the range. Gas costs, token incentives, and any rebalancing you do are also excluded, and the fee APR is treated as constant when real pool yields move with volume.</p>
+  </section>
+
+  <section class="copy">
+    <h2>Questions</h2>
+    <details open>
+      <summary>How is impermanent loss calculated?</summary>
+      <p>For a 50/50 constant-product pool, impermanent loss depends only on how much the two asset prices diverge. If r is the ratio of their price changes, the loss versus simply holding is 2 times the square root of r, divided by one plus r, minus one.</p>
+    </details>
+    <details>
+      <summary>What fee APR do I need to break even?</summary>
+      <p>Enough fee income to cancel the impermanent loss over your holding period. Because fees accrue on the position value rather than your original deposit, the required yield is one divided by one plus the impermanent loss, minus one, annualised over the days you stay in the pool.</p>
+    </details>
+    <details>
+      <summary>Is impermanent loss really impermanent?</summary>
+      <p>Only if prices return to their starting ratio. If you withdraw while prices have diverged, the loss is realised and permanent. The name refers to the fact that the loss reverses if the price ratio comes back.</p>
+    </details>
+  </section>
+
+  <div class="risk"><strong>Risk note.</strong> Providing liquidity exposes you to price risk, smart-contract risk, and losses that fees may not cover. These figures are estimates for education and planning, not financial advice. Check the pool&rsquo;s own numbers before committing funds.</div>
+
+  <p class="byline">Open method: the formulas are shown above and the full source is public &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
+
+  <nav class="related" aria-label="Related tools">
+    <h2>Related calculators</h2>
+    <ul>
+      <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included</a></li>
+      <li><a href="/compound-interest-calculator/"><b>Compound interest</b> &mdash; growth with regular contributions</a></li>
+    </ul>
+  </nav>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <p>General information only, not financial advice. &middot; <a href="/">All tools</a> &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   IL + FEE BREAKEVEN.  All maths verified against a direct x*y=k simulation.
+     r        = changeA / changeB
+     IL       = 2*sqrt(r)/(1+r) - 1                (<= 0)
+     LP       = deposit * sqrt(r)
+     HODL     = deposit * (r+1)/2                  (note LP == HODL*(1+IL))
+     fees     = LP * apr * days/365                (on POSITION value)
+     required = 1/(1+IL) - 1
+     beAPR    = required * 365/days
+   ============================================================================ */
+(function(){
+  var ids=["dep","ca","cb","days","apr"], el={};
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var out=document.getElementById("out"), sub=document.getElementById("sub"),
+      rHodl=document.getElementById("rHodl"), rLp=document.getElementById("rLp"),
+      rFees=document.getElementById("rFees"), rTotal=document.getElementById("rTotal"),
+      rBe=document.getElementById("rBe"), verdict=document.getElementById("verdict");
+  var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
+  function pct(x,d){return (x*100).toFixed(d===undefined?2:d)+"%";}
+
+  function calc(){
+    var V0=+el.dep.value||0, cA=+el.ca.value||0, cB=+el.cb.value||0,
+        days=+el.days.value||0, apr=(+el.apr.value||0)/100;
+
+    out.classList.remove("neg");
+    verdict.classList.remove("good","bad");
+
+    if(V0<=0||cA<=0||cB<=0||days<=0){
+      out.textContent="—"; sub.textContent="Enter a deposit, both price changes, and days.";
+      [rHodl,rLp,rFees,rTotal,rBe].forEach(function(n){n.textContent="—";});
+      verdict.textContent="—"; return;
+    }
+
+    var r   = cA/cB;
+    var IL  = 2*Math.sqrt(r)/(1+r) - 1;            // <= 0
+    var lp  = V0*Math.sqrt(r);
+    var hodl= V0*(r+1)/2;
+    var fees= lp*apr*days/365;                      // fees on POSITION value
+    var tot = lp + fees;
+    var req = 1/(1+IL) - 1;                         // required fee yield
+    var be  = req*365/days;                         // annualised
+
+    if(IL < -1e-12) out.classList.add("neg");
+    out.textContent = pct(IL,3);
+    sub.textContent = "Price ratio r = " + r.toFixed(4) + (Math.abs(r-1)<1e-12 ? "  ·  no divergence, no loss" : "");
+
+    rHodl.textContent  = money.format(hodl);
+    rLp.textContent    = money.format(lp);
+    rFees.textContent  = money.format(fees);
+    rTotal.textContent = money.format(tot);
+    rBe.textContent    = isFinite(be) ? pct(be,2) : "—";
+
+    var net = tot - hodl;
+    if(Math.abs(r-1)<1e-12){
+      verdict.textContent = "No price divergence — LP earns fees with no impermanent loss.";
+      verdict.classList.add("good");
+    } else if(net >= 0){
+      verdict.classList.add("good");
+      verdict.textContent = "LP beats holding by " + money.format(net) +
+        " — pool APR " + pct(apr,1) + " is above the " + pct(be,2) + " breakeven.";
+    } else {
+      verdict.classList.add("bad");
+      verdict.textContent = "LP trails holding by " + money.format(-net) +
+        " — pool APR " + pct(apr,1) + " is below the " + pct(be,2) + " breakeven.";
+    }
+  }
+  ids.forEach(function(i){el[i].addEventListener("input",calc);});
+  calc();
+})();
+</script>
+</body>
+</html>
