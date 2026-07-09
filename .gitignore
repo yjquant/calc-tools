@@ -1,0 +1,15 @@
+# Archives must never be committed or deployed — generate them OUTSIDE public/.
+# (guards against accidents like a stray public/privacy.zip being served publicly)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
