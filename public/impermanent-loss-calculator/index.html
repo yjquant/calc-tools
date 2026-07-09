@@ -124,6 +124,25 @@
   .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);font-weight:600;margin-top:4px;letter-spacing:-.01em}
   .readout .v.neg{color:var(--loss)}
   .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+  /* --- chart: hand-rolled inline SVG, no library (keeps the page dependency-free) --- */
+  .chartwrap{margin-top:20px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 14px 10px}
+  .chartwrap h3{margin:0 0 2px;font-size:.95rem;letter-spacing:-.01em}
+  .chartwrap .cap{font-size:.78rem;color:var(--muted);margin:0 0 10px}
+  .chart{display:block;width:100%;height:auto}
+  .chart .grid{stroke:var(--line);stroke-width:1}
+  .chart .axis{stroke:#c9c8c1;stroke-width:1}
+  .chart .tick{fill:var(--muted);font-family:var(--mono);font-size:9px}
+  .chart .band{fill:var(--accent);opacity:.07}
+  .chart .bandedge{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:.5}
+  .chart .hodl{fill:none;stroke:#9aa3ad;stroke-width:2}
+  .chart .lp{fill:none;stroke:var(--accent);stroke-width:2.5}
+  .chart .marker{fill:var(--panel);stroke:#fff;stroke-width:2}
+  .chart .mline{stroke:var(--panel);stroke-width:1;stroke-dasharray:2 3;opacity:.45}
+  .chart .lbl{font-family:var(--sans);font-size:10px;font-weight:600}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.76rem;color:var(--muted);margin-top:6px}
+  .legend i{display:inline-block;width:16px;height:2.5px;vertical-align:middle;margin-right:5px;border-radius:2px}
+  .legend .k1{background:var(--accent)} .legend .k2{background:#9aa3ad}
+  .legend .k3{background:var(--accent);opacity:.25;height:9px;border-radius:2px}
   .rows{margin-top:16px;border-top:1px solid #22303c;padding-top:14px;display:grid;gap:8px}
   .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px}
   .row b{color:#dbe4ec;font-weight:600}
@@ -222,6 +241,28 @@
       </div>
       <div class="verdict" id="verdict">&mdash;</div>
     </div>
+
+    <!-- CHART. Plain SVG, drawn from the same maths as the readout. viewBox is
+         fixed at 700x300 and scales to the container, so it works on phones. -->
+    <div class="chartwrap">
+      <h3>Where LPing beats holding</h3>
+      <p class="cap">Both curves as the price ratio moves. The shaded band is where fees more than cover the loss.</p>
+      <svg class="chart" viewBox="0 0 700 300" role="img" aria-labelledby="chartTitle chartDesc">
+        <title id="chartTitle">LP position plus fees compared with simply holding</title>
+        <desc id="chartDesc">Two curves plotted against the price ratio. Where the LP curve sits above the holding curve, providing liquidity is ahead.</desc>
+        <g id="cGrid"></g>
+        <g id="cBand"></g>
+        <path id="cHodl" class="hodl"></path>
+        <path id="cLp" class="lp"></path>
+        <g id="cMarker"></g>
+        <g id="cAxis"></g>
+      </svg>
+      <div class="legend">
+        <span><i class="k1"></i>LP + fees</span>
+        <span><i class="k2"></i>Simply holding</span>
+        <span><i class="k3"></i>LP ahead</span>
+      </div>
+    </div>
   </div>
 
   <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
@@ -247,6 +288,7 @@
     </div>
     <p>One subtlety worth stating, because it is easy to get wrong: fees accrue on the <strong>LP position value</strong>, not on your original deposit. Since the position is worth less than the deposit once prices diverge, using the deposit overstates the fees you actually collect. This calculator applies fees to the position.</p>
     <p>Note the time dependence: the same 5.72% loss needs about a <strong>25% APR</strong> to break even over 90 days, but roughly <strong>316%</strong> over a single week &mdash; a short, violent move is far harder to out-earn than a slow drift.</p>
+    <p>The chart above makes a point the single figure hides: LPing wins inside a <strong>band</strong>, not everywhere. Fees are pure profit when prices barely move, but impermanent loss grows faster than fee income as the ratio runs away, so there is a price move in each direction beyond which holding wins. Solving for where the two curves cross gives the edges of that band, and they are marked on the chart. If you expect the ratio to leave the band, the pool&rsquo;s APR is not the number that matters.</p>
   </section>
 
   <section class="copy">
@@ -327,7 +369,7 @@
     if(V0<=0||cA<=0||cB<=0||days<=0){
       out.textContent="—"; sub.textContent="Enter a deposit, both price changes, and days.";
       [rHodl,rLp,rFees,rTotal,rBe].forEach(function(n){n.textContent="—";});
-      verdict.textContent="—"; return;
+      verdict.textContent="—"; drawChart(V0,days,apr); return;
     }
 
     var r   = cA/cB;
@@ -362,7 +404,112 @@
       verdict.textContent = "LP trails holding by " + money.format(-net) +
         " — pool APR " + pct(apr,1) + " is below the " + pct(be,2) + " breakeven.";
     }
+
+    drawChart(V0, days, apr);
   }
+
+  /* ---------------------------------------------------------------------
+     CHART. Same maths as above, drawn as SVG paths. No library.
+     x-axis is log(r) so a 4x rise and a 4x fall are symmetric about r=1.
+     Curves: HODL = V0*(r+1)/2 ; LP+fees = V0*sqrt(r)*(1+y), y = apr*days/365.
+     Band edges solve sqrt(r)*(1+y) = (r+1)/2, i.e. s^2 - 2(1+y)s + 1 = 0
+     with s = sqrt(r) -> closed form, no searching.
+     --------------------------------------------------------------------- */
+  var W=700,H=300,PL=52,PR=14,PT=16,PB=30;         // viewBox + padding
+  var RMIN=0.25, RMAX=4;                            // log-symmetric about 1
+  var lnMin=Math.log(RMIN), lnMax=Math.log(RMAX);
+
+  function X(r){ return PL + (Math.log(r)-lnMin)/(lnMax-lnMin)*(W-PL-PR); }
+  function svgEl(t,a){ var e=document.createElementNS("http://www.w3.org/2000/svg",t);
+    for(var k in a) e.setAttribute(k,a[k]); return e; }
+  function fmtK(v){ return v>=1000 ? "$"+Math.round(v/1000)+"k" : "$"+Math.round(v); }
+
+  function bandEdges(y){
+    /* Solve sqrt(r)*(1+y) = (r+1)/2  ->  s^2 - 2(1+y)s + 1 = 0, s = sqrt(r).
+       Roots multiply to 1, so the band is symmetric in log space about r=1.
+       y <= 0 (no fees) collapses the band to the single point r=1: LP can
+       never beat holding, so there is nothing to shade. */
+    if(y<=0) return null;
+    var b=2*(1+y), disc=b*b-4;
+    if(disc<=0) return null;                        // numerically degenerate
+    var s1=(b-Math.sqrt(disc))/2, s2=(b+Math.sqrt(disc))/2;
+    return [s1*s1, s2*s2];
+  }
+
+  function drawChart(V0, days, apr){
+    var g=document.getElementById("cGrid"), band=document.getElementById("cBand"),
+        mk=document.getElementById("cMarker"), ax=document.getElementById("cAxis");
+    [g,band,mk,ax].forEach(function(n){ while(n.firstChild) n.removeChild(n.firstChild); });
+    if(V0<=0||days<=0){ document.getElementById("cHodl").setAttribute("d","");
+                        document.getElementById("cLp").setAttribute("d",""); return; }
+
+    var y = apr*days/365;
+    var N = 160, hodlPts=[], lpPts=[], vmax=0;
+    for(var i=0;i<=N;i++){
+      var r = Math.exp(lnMin + (lnMax-lnMin)*i/N);
+      var h = V0*(r+1)/2, l = V0*Math.sqrt(r)*(1+y);
+      hodlPts.push([r,h]); lpPts.push([r,l]);
+      if(h>vmax) vmax=h; if(l>vmax) vmax=l;
+    }
+    vmax *= 1.06;
+    function Y(v){ return PT + (1 - v/vmax)*(H-PT-PB); }
+
+    // horizontal gridlines + y labels
+    for(var t=0;t<=4;t++){
+      var v = vmax*t/4, yy = Y(v);
+      g.appendChild(svgEl("line",{x1:PL,y1:yy,x2:W-PR,y2:yy,"class":"grid"}));
+      var lb=svgEl("text",{x:PL-8,y:yy+3,"class":"tick","text-anchor":"end"});
+      lb.textContent=fmtK(v); g.appendChild(lb);
+    }
+
+    // the band where LP+fees >= HODL
+    var edges = bandEdges(y);
+    if(edges){
+      var lo=Math.max(edges[0],RMIN), hi=Math.min(edges[1],RMAX);
+      if(hi>lo){
+        band.appendChild(svgEl("rect",{x:X(lo),y:PT,width:X(hi)-X(lo),height:H-PT-PB,"class":"band"}));
+        [edges[0],edges[1]].forEach(function(e){
+          if(e>RMIN&&e<RMAX){
+            band.appendChild(svgEl("line",{x1:X(e),y1:PT,x2:X(e),y2:H-PB,"class":"bandedge"}));
+            var t=svgEl("text",{x:X(e),y:PT+11,"class":"tick","text-anchor":"middle"});
+            t.textContent=e.toFixed(2)+"x"; band.appendChild(t);
+          }
+        });
+      }
+    }
+
+    function path(pts){ return pts.map(function(p,i){
+      return (i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1); }).join(" "); }
+    document.getElementById("cHodl").setAttribute("d", path(hodlPts));
+    document.getElementById("cLp").setAttribute("d", path(lpPts));
+
+    // x-axis ticks
+    ax.appendChild(svgEl("line",{x1:PL,y1:H-PB,x2:W-PR,y2:H-PB,"class":"axis"}));
+    [0.25,0.5,1,2,4].forEach(function(r){
+      var xx=X(r);
+      ax.appendChild(svgEl("line",{x1:xx,y1:H-PB,x2:xx,y2:H-PB+4,"class":"axis"}));
+      var t=svgEl("text",{x:xx,y:H-PB+15,"class":"tick","text-anchor":"middle"});
+      t.textContent=(r===1?"1x (no change)":r+"x"); ax.appendChild(t);
+    });
+    var xl=svgEl("text",{x:(PL+W-PR)/2,y:H-4,"class":"tick","text-anchor":"middle"});
+    xl.textContent="price ratio r  (asset A vs asset B)"; ax.appendChild(xl);
+
+    // marker at the user's current r
+    var cA=+el.ca.value||0, cB=+el.cb.value||0;
+    if(cA>0&&cB>0){
+      var r0=cA/cB;
+      if(r0>=RMIN&&r0<=RMAX){
+        var v0=V0*Math.sqrt(r0)*(1+y);
+        mk.appendChild(svgEl("line",{x1:X(r0),y1:Y(v0),x2:X(r0),y2:H-PB,"class":"mline"}));
+        mk.appendChild(svgEl("circle",{cx:X(r0),cy:Y(v0),r:5,"class":"marker"}));
+        var anchor = X(r0) > W-140 ? "end" : "start";
+        var t=svgEl("text",{x:X(r0)+(anchor==="end"?-9:9),y:Y(v0)-9,"class":"lbl",
+          "text-anchor":anchor,fill:"var(--accent-ink)"});
+        t.textContent="you are here"; mk.appendChild(t);
+      }
+    }
+  }
+
   ids.forEach(function(i){el[i].addEventListener("input",calc);});
   calc();
 })();
