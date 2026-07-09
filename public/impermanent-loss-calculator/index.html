@@ -144,8 +144,14 @@
   .legend .k1{background:var(--accent)} .legend .k2{background:#9aa3ad}
   .legend .k3{background:var(--accent);opacity:.25;height:9px;border-radius:2px}
   .rows{margin-top:16px;border-top:1px solid #22303c;padding-top:14px;display:grid;gap:8px}
-  .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px}
+  .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px;align-items:baseline}
   .row b{color:#dbe4ec;font-weight:600}
+  @media(max-width:560px){
+    .readout{padding:18px 16px}
+    .row{font-size:.8rem;gap:8px}
+    .row span{flex:1 1 auto;min-width:0}
+    .row b{flex:0 0 auto;white-space:nowrap}
+  }
   .verdict{margin-top:14px;font-family:var(--mono);font-size:.84rem;padding:10px 12px;border-radius:8px;background:#16202a;color:#9fb0bf}
   .verdict.good{color:var(--readout)} .verdict.bad{color:var(--loss)}
   section.copy{margin:38px 0}
