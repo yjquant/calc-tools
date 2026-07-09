@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ============================================================================
+  TOOL #4 — Position Size & Max Safe Leverage.
+  Cloned from _template/reference-tool-template.html. House style UNCHANGED.
+
+  DIFFERENTIATOR. Risk-based sizing is simple arithmetic and every calculator
+  does it. What none of them tell you is whether your chosen leverage puts the
+  liquidation price *between entry and your stop* — in which case the stop never
+  fires and the "1% risk" was a fiction. This page computes that ceiling.
+
+  MATHS (verified in verification/position_size.py against a simulated account):
+    qty        = (balance * risk%) / (|entry - stop| + fee*entry)
+    liq        = entry*(1 - 1/L + fee)/(1 - mmr)     [long]
+               = entry*(1 + 1/L - fee)/(1 + mmr)     [short]
+    L_max      = 1 / (1 + fee - (stop/entry)*(1 - mmr))          [long]
+               = 1 / ((stop/entry)*(1 + mmr) - 1 + fee)          [short]
+  At L_max the liquidation price lands exactly on the stop. A finite ceiling
+  always exists for a valid stop, and it approaches 1/mmr as the stop tightens.
+  ============================================================================
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Position Size Calculator — With Max Safe Leverage</title>
+<meta name="description" content="Free position size calculator for leveraged trades. Sizes to a fixed risk with fees, then shows the maximum leverage before liquidation beats your stop.">
+
+<link rel="canonical" href="https://quantcalcs.com/position-size-calculator/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0f1419">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Position Size Calculator with Max Safe Leverage">
+<meta property="og:description" content="Size to a fixed risk, and check your stop fires before liquidation.">
+<meta property="og:url" content="https://quantcalcs.com/position-size-calculator/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "Position Size Calculator with Max Safe Leverage",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": "https://quantcalcs.com/position-size-calculator/"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I calculate position size from risk?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Divide the amount you are willing to lose by the loss per unit, which is the distance from entry to stop plus the round-trip fee on that unit. The result is the quantity to buy or sell, and multiplying it by the entry price gives the notional." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I be liquidated before my stop is hit?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, and it is a common and expensive mistake. If your leverage is high enough, the liquidation price sits between your entry and your stop, so the exchange closes the position first and your intended risk limit never applies." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the maximum leverage I can safely use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The leverage at which the liquidation price lands exactly on your stop. Beyond it, liquidation comes first. It depends on how far your stop sits from entry, the maintenance margin rate, and fees, and it can never exceed one divided by the maintenance rate." }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Tools", "item": "https://quantcalcs.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Position Size Calculator", "item": "https://quantcalcs.com/position-size-calculator/" }
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- Shared analytics / kill-gate hook (Search Console verified at domain level). -->
+<!-- <script defer data-domain="quantcalcs.com" src="https://plausible.io/js/script.js"></script> -->
+
+<style>
+  /* ---- SHARED HOUSE STYLE — identical to the reference template ---------- */
+  :root{
+    --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
+    --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
+    --warn:#e2b04a; --loss:#e88b7d; --radius:14px; --maxw:720px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  header.site{border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
+  .brand span{color:var(--accent)}
+  nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
+  nav.top a:hover{color:var(--ink)}
+  .crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+  .crumb a{color:var(--muted);text-decoration:none}
+  h1{font-size:clamp(1.6rem,4.5vw,2.2rem);letter-spacing:-.02em;line-height:1.15;margin:.5em 0 .2em}
+  .lede{color:var(--muted);margin:0 0 26px;font-size:1.02rem}
+  .tool{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--paper)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);border-color:transparent}
+  .field .hint{font-size:.72rem;color:var(--muted);margin-top:4px}
+  .optional{margin-top:16px;border-top:1px dashed var(--line);padding-top:16px}
+  .optional .cap{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  /* signature: instrument readout */
+  .readout{margin-top:20px;background:var(--panel);border-radius:12px;padding:20px 22px;color:#c9d2dc}
+  .readout .k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:#8a97a6}
+  .readout .v{font-family:var(--mono);font-size:clamp(1.8rem,6vw,2.6rem);color:var(--readout);font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .readout .v.warn{color:var(--warn)}
+  .readout .sub{font-family:var(--mono);font-size:.86rem;color:#9fb0bf;margin-top:8px}
+  .rows{margin-top:16px;border-top:1px solid #22303c;padding-top:14px;display:grid;gap:8px}
+  .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.86rem;color:#9fb0bf;gap:12px;align-items:baseline}
+  .row b{color:#dbe4ec;font-weight:600}
+  .verdict{margin-top:14px;font-family:var(--mono);font-size:.84rem;padding:10px 12px;border-radius:8px;background:#16202a;color:#9fb0bf}
+  .verdict.good{color:var(--readout)} .verdict.bad{color:var(--loss)}
+  @media(max-width:560px){
+    .readout{padding:18px 16px}
+    .row{font-size:.8rem;gap:8px}
+    .row span{flex:1 1 auto;min-width:0}
+    .row b{flex:0 0 auto;white-space:nowrap}
+  }
+  section.copy{margin:38px 0}
+  section.copy h2{font-size:1.2rem;letter-spacing:-.01em;margin:0 0 10px}
+  .formula{font-family:var(--mono);font-size:.9rem;background:#f4f4ef;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;line-height:1.9}
+  .note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+  details{border-top:1px solid var(--line);padding:14px 0}
+  details summary{cursor:pointer;font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+  details[open] summary::before{content:"– "}
+  .risk{background:#fbf6ea;border:1px solid #ecdcb4;border-radius:10px;padding:14px 16px;font-size:.9rem;margin:26px 0}
+  .byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+  .ad{border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:#aab0b8;font-size:.78rem;margin:26px 0}
+  .related{margin:34px 0}
+  .related h2{font-size:1.05rem;margin:0 0 12px}
+  .related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:560px){.related ul{grid-template-columns:1fr}}
+  .related a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:.92rem}
+  .related a:hover{border-color:var(--accent)}
+  .related a b{color:var(--accent-ink)}
+  footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#tool">Skip to calculator</a>
+
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="/">QuantCalcs<span>/</span>tools</a>
+    <nav class="top" aria-label="Main">
+      <a href="/#money">Money</a>
+      <a href="/#crypto">Crypto</a>
+      <a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="crumb"><a href="/">Tools</a> &rsaquo; Position size calculator</p>
+
+  <h1>Position Size Calculator</h1>
+  <p class="lede">Size a leveraged trade to a fixed risk, fees included &mdash; then check that your stop actually fires before the exchange liquidates you.</p>
+
+  <!-- ================= THE TOOL ================= -->
+  <div class="tool" id="tool">
+    <div class="grid">
+      <div class="field">
+        <label for="bal">Account balance (USD)</label>
+        <input id="bal" type="number" inputmode="decimal" value="10000" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="risk">Risk per trade (%)</label>
+        <input id="risk" type="number" inputmode="decimal" value="1" min="0" step="0.1">
+        <div class="hint">What you lose if stopped out.</div>
+      </div>
+      <div class="field">
+        <label for="dir">Direction</label>
+        <select id="dir">
+          <option value="long" selected>Long</option>
+          <option value="short">Short</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="entry">Entry price</label>
+        <input id="entry" type="number" inputmode="decimal" value="60000" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="stop">Stop price</label>
+        <input id="stop" type="number" inputmode="decimal" value="57000" min="0" step="any">
+        <div class="hint">Below entry for a long, above for a short.</div>
+      </div>
+      <div class="field">
+        <label for="lev">Leverage (x)</label>
+        <input id="lev" type="number" inputmode="decimal" value="10" min="1" step="0.5">
+      </div>
+    </div>
+
+    <div class="optional">
+      <div class="cap">Optional &mdash; exchange specifics</div>
+      <div class="grid">
+        <div class="field">
+          <label for="mmr">Maintenance margin (%)</label>
+          <input id="mmr" type="number" inputmode="decimal" value="0.5" min="0" step="0.1">
+          <div class="hint">Often 0.4&ndash;1% at low tiers.</div>
+        </div>
+        <div class="field">
+          <label for="fee">Round-trip fee (%)</label>
+          <input id="fee" type="number" inputmode="decimal" value="0.1" min="0" step="0.01">
+          <div class="hint">Open + close taker fees.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- signature instrument readout -->
+    <div class="readout" aria-live="polite">
+      <div class="k">Position size</div>
+      <div class="v" id="out">&mdash;</div>
+      <div class="sub" id="sub">&mdash;</div>
+
+      <div class="rows">
+        <div class="row"><span>Risk amount</span><b id="rRisk">&mdash;</b></div>
+        <div class="row"><span>Margin required</span><b id="rMargin">&mdash;</b></div>
+        <div class="row"><span>Liquidation price</span><b id="rLiq">&mdash;</b></div>
+        <div class="row"><span>Stop distance</span><b id="rDist">&mdash;</b></div>
+        <div class="row"><span>Max safe leverage</span><b id="rLmax">&mdash;</b></div>
+      </div>
+      <div class="verdict" id="verdict">&mdash;</div>
+    </div>
+  </div>
+
+  <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
+
+  <!-- ================= CONTENT ================= -->
+  <section class="copy">
+    <h2>Sizing to a fixed risk</h2>
+    <p>The premise of risk-based sizing is that you decide the loss <em>first</em> and let the position follow. If you accept losing 1% of the account and your stop sits 5% away, the position is whatever size makes those two numbers agree. A tighter stop therefore buys a larger position at the same risk &mdash; not a safer one.</p>
+    <div class="formula">
+      loss per unit &nbsp;= &nbsp;|entry &minus; stop| &nbsp;+ &nbsp;fee &times; entry<br>
+      quantity &nbsp;= &nbsp;(balance &times; risk%) &divide; loss per unit<br>
+      notional &nbsp;= &nbsp;quantity &times; entry
+    </div>
+    <p class="note">Fees belong in the loss per unit. Leave them out and the trade quietly risks more than the number you chose.</p>
+  </section>
+
+  <section class="copy">
+    <h2>The part other calculators skip: can you even reach your stop?</h2>
+    <p>A stop-loss only protects you if the exchange lets you get there. Push the leverage high enough and the <strong>liquidation price moves inside your stop</strong> &mdash; the position is closed out before the stop ever triggers, and the &ldquo;1% risk&rdquo; you carefully calculated was never real. The loss is the whole margin instead.</p>
+    <p>There is an exact leverage at which liquidation lands precisely on the stop. Above it you are liquidated first; below it the stop does its job.</p>
+    <div class="formula">
+      long&nbsp; L<sub>max</sub> = 1 &divide; (1 + fee &minus; (stop &divide; entry) &times; (1 &minus; mmr))<br>
+      short L<sub>max</sub> = 1 &divide; ((stop &divide; entry) &times; (1 + mmr) &minus; 1 + fee)
+    </div>
+    <p>Two consequences worth internalising. A <strong>wider stop lowers the ceiling</strong>, because the price has further to travel and liquidation is waiting on the way. And no matter how tight the stop, the ceiling can never exceed <strong>1 &divide; maintenance rate</strong> &mdash; at 0.5% maintenance that is 200&times;, at 5% it is 20&times;, because maintenance margin alone eventually consumes what you posted.</p>
+  </section>
+
+  <section class="copy">
+    <h2>What this excludes</h2>
+    <p>This models an isolated-margin position on a linear perpetual. Under cross margin your whole balance backs the trade, so liquidation sits further away and depends on your other positions. Exchanges also use tiered maintenance rates that rise with position size, funding is ignored because it accrues over time rather than at a point, and slippage means a stop may fill worse than its trigger price. Each of those pushes the real outcome slightly against you, so treat the ceiling as an upper bound rather than a target.</p>
+  </section>
+
+  <section class="copy">
+    <h2>Questions</h2>
+    <details open>
+      <summary>How do I calculate position size from risk?</summary>
+      <p>Divide the amount you are willing to lose by the loss per unit, which is the distance from entry to stop plus the round-trip fee on that unit. The result is the quantity to buy or sell, and multiplying it by the entry price gives the notional.</p>
+    </details>
+    <details>
+      <summary>Can I be liquidated before my stop is hit?</summary>
+      <p>Yes, and it is a common and expensive mistake. If your leverage is high enough, the liquidation price sits between your entry and your stop, so the exchange closes the position first and your intended risk limit never applies.</p>
+    </details>
+    <details>
+      <summary>What is the maximum leverage I can safely use?</summary>
+      <p>The leverage at which the liquidation price lands exactly on your stop. Beyond it, liquidation comes first. It depends on how far your stop sits from entry, the maintenance margin rate, and fees, and it can never exceed one divided by the maintenance rate.</p>
+    </details>
+  </section>
+
+  <div class="risk"><strong>Risk note.</strong> Leveraged trading can lose your entire margin, and liquidation often happens faster than expected during volatile moves. These figures are estimates for education and risk-planning, not trading or financial advice. Your exchange&rsquo;s own margin engine is the authority for your account.</div>
+
+  <section class="copy">
+    <h2>How this was verified</h2>
+    <p>The leverage ceiling is not asserted, it is checked. A script simulates a margin account and walks the price from entry toward the stop, testing at every step whether equity has fallen to the maintenance requirement, and confirms that the closed form predicts which event fires first &mdash; stop or liquidation &mdash; on both sides of the market. It also pins that a stop-out costs exactly the intended risk once fees are counted, that halving the stop distance doubles the position, that widening the stop lowers the ceiling, and that the ceiling approaches one divided by the maintenance rate as the stop tightens.</p>
+    <p>You can run it yourself: <a href="https://github.com/yjquant/calc-tools/blob/main/verification/position_size.py" rel="noopener">verification/position_size.py</a>.</p>
+  </section>
+
+  <p class="byline">Open method: the formulas are shown above, the checks are public, and the full source is on GitHub &mdash; verify it at <a href="https://github.com/yjquant/calc-tools" rel="noopener">github.com/yjquant/calc-tools</a>. Corrections welcome via <a href="mailto:hello@quantcalcs.com">hello@quantcalcs.com</a>.</p>
+
+  <nav class="related" aria-label="Related tools">
+    <h2>More calculators</h2>
+    <ul>
+      <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included</a></li>
+      <li><a href="/impermanent-loss-calculator/"><b>Impermanent loss</b> &mdash; LP vs holding, with the fee APR to break even</a></li>
+    </ul>
+  </nav>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <p>General information only, not financial advice. &middot; <a href="/">All tools</a> &middot; <a href="/about/">About</a> &middot; <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   POSITION SIZING + MAX SAFE LEVERAGE.
+   Verified against a simulated margin account in verification/position_size.py
+     qty   = (balance*risk) / (|entry-stop| + fee*entry)
+     liq   = entry*(1 - 1/L + fee)/(1 - mmr)      [long]
+           = entry*(1 + 1/L - fee)/(1 + mmr)      [short]
+     Lmax  = 1 / (1 + fee - (stop/entry)*(1-mmr))         [long]
+           = 1 / ((stop/entry)*(1+mmr) - 1 + fee)         [short]
+   A valid stop always yields a finite Lmax; the null branch guards bad input
+   (e.g. a long whose stop sits above entry).
+   ============================================================================ */
+(function(){
+  var ids=["bal","risk","dir","entry","stop","lev","mmr","fee"], el={};
+  ids.forEach(function(i){el[i]=document.getElementById(i);});
+  var out=document.getElementById("out"), sub=document.getElementById("sub"),
+      rRisk=document.getElementById("rRisk"), rMargin=document.getElementById("rMargin"),
+      rLiq=document.getElementById("rLiq"), rDist=document.getElementById("rDist"),
+      rLmax=document.getElementById("rLmax"), verdict=document.getElementById("verdict");
+  var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
+
+  function liqPrice(E,L,mmr,isLong,fee){
+    if(isLong){
+      var num = 1 - 1/L + fee;
+      if(num<=0 || mmr>=1) return null;      // margin covers a total loss
+      return E*num/(1-mmr);
+    }
+    return E*(1 + 1/L - fee)/(1 + mmr);
+  }
+  function maxSafeLeverage(E,S,mmr,isLong,fee){
+    var d = isLong ? (1 + fee - (S/E)*(1-mmr))
+                   : ((S/E)*(1+mmr) - 1 + fee);
+    return d>0 ? 1/d : null;                 // null = stop on the wrong side
+  }
+
+  function blank(msg){
+    out.textContent="—"; sub.textContent=msg;
+    [rRisk,rMargin,rLiq,rDist,rLmax].forEach(function(n){n.textContent="—";});
+    verdict.textContent="—"; verdict.classList.remove("good","bad");
+  }
+
+  function calc(){
+    var bal=+el.bal.value||0, risk=(+el.risk.value||0)/100, isLong=el.dir.value==="long",
+        E=+el.entry.value||0, S=+el.stop.value||0, L=+el.lev.value||0,
+        mmr=(+el.mmr.value||0)/100, fee=(+el.fee.value||0)/100;
+
+    out.classList.remove("warn");
+    verdict.classList.remove("good","bad");
+
+    if(bal<=0||risk<=0||E<=0||S<=0||L<1){ blank("Enter a balance, risk, prices and leverage."); return; }
+    if(isLong && S>=E){ blank("For a long, the stop must sit below the entry price."); return; }
+    if(!isLong && S<=E){ blank("For a short, the stop must sit above the entry price."); return; }
+
+    var stopDist=Math.abs(E-S);
+    var lossPerUnit=stopDist + fee*E;
+    var riskAmt=bal*risk;
+    var qty=riskAmt/lossPerUnit;
+    var notional=qty*E;
+    var margin=notional/L;
+
+    var liq=liqPrice(E,L,mmr,isLong,fee);
+    var lmax=maxSafeLeverage(E,S,mmr,isLong,fee);
+
+    // headline: notional, with quantity underneath
+    out.textContent=money.format(notional);
+    sub.textContent=qty.toFixed(6)+" units  ·  stop "+(stopDist/E*100).toFixed(2)+"% away";
+
+    rRisk.textContent=money.format(riskAmt);
+    rMargin.textContent=money.format(margin);
+    rLiq.textContent = liq===null ? "none at this leverage" : money.format(liq);
+    rDist.textContent=(stopDist/E*100).toFixed(2)+"%";
+    rLmax.textContent = lmax===null ? "—" : lmax.toFixed(2)+"x";
+
+    // the verdict this page exists for
+    var liqFirst = liq!==null && (isLong ? liq > S : liq < S);
+    if(liqFirst){
+      out.classList.add("warn");
+      verdict.classList.add("bad");
+      verdict.textContent = "Liquidation at " + money.format(liq) +
+        " sits inside your stop — you are liquidated first, losing the whole " +
+        money.format(margin) + " margin. Drop to " + lmax.toFixed(2) + "x or lower.";
+    } else if(lmax!==null){
+      verdict.classList.add("good");
+      var head = lmax - L;
+      verdict.textContent = "Stop fires before liquidation" +
+        (liq!==null ? " (liq " + money.format(liq) + ")" : "") +
+        ". Headroom: " + (head>0 ? head.toFixed(2)+"x of extra leverage." : "none — you are at the limit.");
+    } else {
+      verdict.textContent = "Stop fires before liquidation.";
+    }
+  }
+  ids.forEach(function(i){el[i].addEventListener("input",calc);});
+  calc();
+})();
+</script>
+</body>
+</html>

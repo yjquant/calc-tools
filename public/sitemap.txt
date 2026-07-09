@@ -1,6 +1,7 @@
 https://quantcalcs.com/
 https://quantcalcs.com/liquidation-price-calculator/
 https://quantcalcs.com/impermanent-loss-calculator/
+https://quantcalcs.com/position-size-calculator/
 https://quantcalcs.com/compound-interest-calculator/
 https://quantcalcs.com/about/
 https://quantcalcs.com/privacy/
