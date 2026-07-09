@@ -54,7 +54,7 @@ section.copy{margin:34px 0}
 .tools a b{display:block;font-size:1rem;margin-bottom:3px}
 .tools a span{color:var(--muted);font-size:.88rem}
 .soon{list-style:none;padding:0;margin:10px 0 0;color:var(--muted);font-size:.9rem}
-.soon li{padding:3px 0}
+.soon li{padding:3px 0 3px 1.1em;text-indent:-1.1em}
 .soon li::before{content:"◦ ";color:var(--accent);font-family:var(--mono)}
 
 /* trust strip / byline / notes */
