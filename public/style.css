@@ -1,68 +1,279 @@
-/* ===========================================================================
-   SHARED HOUSE STYLE  —  the single source of truth for the hub's look.
-   Shell pages (index, about, privacy) link this file. New tools can link it
-   too (recommended) or keep the identical CSS inlined for full portability.
-   Direction: "measured instrument" — cool paper + ink + one petrol accent,
-   system fonts (zero requests = near-instant = an SEO feature), the numeric
-   readout treated like a lab instrument.
-   =========================================================================== */
+/* ============================================================================
+   QuantCalcs — house style v2, "engineering notebook".
+   Single source of truth: every page links this file.
+
+   The site's claim is that it shows its work, so the page is dressed as a sheet
+   of worked calculations: a graph-paper desk, a white sheet with a red margin
+   rule, registration ticks on the instrument, hairline rules, and every figure
+   set in tabular monospace so numbers line up like measurements.
+
+   No webfonts, no images, no libraries. The identity is CSS gradients and
+   system type, so the page still renders instantly — which is itself the
+   competitive advantage against the ad-heavy incumbents.
+   ============================================================================ */
 :root{
-  --paper:#fcfcfa; --ink:#14181f; --muted:#5b6470; --line:#e7e6e0;
-  --accent:#116466; --accent-ink:#0c4a4c; --panel:#0f1419; --readout:#7fe3c4;
-  --warn:#e2b04a; --radius:14px; --maxw:720px; --wide:960px;
+  --desk:#eceff0;                 /* graph-paper base — cool, deliberately not cream */
+  --sheet:#fbfcfb;                /* the page you write on */
+  --ink:#11161b; --muted:#59636b;
+  --rule:#dde2e1;                 /* sheet edges, input borders */
+  --hair:#e8ebea;                 /* section hairlines */
+  --accent:#0e5a5f; --accent-ink:#0a4247;
+  --pencil:#b1402f;               /* margin rule + registration ticks */
+  --panel:#0d1216; --phosphor:#7fe3c4;
+  --warn:#e2b04a; --loss:#e88b7d;
+  --maxw:780px; --wide:1000px;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
-.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+
+/* the desk: 22px minor grid over a 110px major grid, pure gradients */
+body{
+  margin:0;color:var(--ink);font-family:var(--sans);line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  background-color:var(--desk);
+  background-image:
+    linear-gradient(rgba(17,22,27,.040) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(17,22,27,.040) 1px,transparent 1px),
+    linear-gradient(rgba(17,22,27,.065) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(17,22,27,.065) 1px,transparent 1px);
+  background-size:22px 22px,22px 22px,110px 110px,110px 110px;
+}
+.skip{position:absolute;left:-999px}
+.skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:10}
+
+/* the sheet laid on the desk */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;background:var(--sheet);
+  border-left:1px solid var(--rule);border-right:1px solid var(--rule)}
 .wrap.wide{max-width:var(--wide)}
+/* red margin rule — only down the main column, like a notebook page */
+body>.wrap{position:relative;padding-left:60px;padding-bottom:28px}
+body>.wrap::before{content:"";position:absolute;top:0;bottom:0;left:44px;
+  width:1px;background:var(--pencil);opacity:.32}
+@media(max-width:620px){
+  .wrap{padding:0 16px}
+  body>.wrap{padding-left:26px}
+  body>.wrap::before{left:14px}
+}
 a{color:var(--accent-ink);text-underline-offset:2px}
 
-/* header / footer / breadcrumb */
-header.site{border-bottom:1px solid var(--line)}
-.bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0;max-width:var(--wide);margin:0 auto;padding-left:20px;padding-right:20px}
-.brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
-.brand span{color:var(--accent)}
-nav.top a{font-size:.86rem;color:var(--muted);text-decoration:none;margin-left:18px}
-nav.top a:hover{color:var(--ink)}
-.crumb{font-size:.8rem;color:var(--muted);padding:10px 0}
+/* header / breadcrumb / footer */
+header.site{border-bottom:1px solid var(--rule);background:var(--sheet)}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:15px 24px;
+  max-width:var(--maxw);margin:0 auto}
+.brand{font-weight:680;letter-spacing:-.015em;text-decoration:none;color:var(--ink);font-size:1.02rem}
+.brand span{color:var(--pencil)}
+nav.top a{font-family:var(--mono);font-size:.76rem;letter-spacing:.04em;color:var(--muted);
+  text-decoration:none;margin-left:18px}
+nav.top a:hover{color:var(--accent-ink)}
+.crumb{font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;color:var(--muted);padding:14px 0 2px}
 .crumb a{color:var(--muted);text-decoration:none}
-footer.site{border-top:1px solid var(--line);margin-top:40px;padding:22px 0;color:var(--muted);font-size:.82rem}
+footer.site{border-top:1px solid var(--rule);margin-top:40px;padding:22px 0;
+  color:var(--muted);font-size:.8rem;background:var(--sheet)}
 
-/* typography */
-h1{font-size:clamp(1.7rem,4.8vw,2.4rem);letter-spacing:-.02em;line-height:1.12;margin:.5em 0 .2em}
-h2{font-size:1.2rem;letter-spacing:-.01em;margin:1.6em 0 .5em}
-.lede{color:var(--muted);margin:0 0 26px;font-size:1.05rem}
-section.copy{margin:34px 0}
+/* type */
+h1{font-size:clamp(1.65rem,4.6vw,2.35rem);letter-spacing:-.028em;line-height:1.1;
+  font-weight:680;margin:.35em 0 .25em}
+.lede{color:var(--muted);margin:0 0 28px;font-size:1.01rem;max-width:60ch}
 
-/* hero (home) */
-.hero{padding:44px 0 8px}
-.hero .tag{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
-.hero p{max-width:60ch}
-
-/* tool grid (home) */
-.cluster{margin:30px 0}
-.cluster h2{margin-bottom:4px}
-.cluster .cnote{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+/* home hero + clusters */
+.hero{padding:36px 0 4px}
+.hero .tag{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--pencil)}
+.cluster{margin:34px 0}
+.cluster h2{position:relative;font-size:1.16rem;margin:0 0 4px;padding-left:16px;font-weight:660}
+.cluster h2::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:2px;background:var(--accent)}
+.cluster .cnote{color:var(--muted);font-size:.9rem;margin:0 0 16px;padding-left:16px}
 .tools{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:620px){.tools{grid-template-columns:1fr}}
-.tools a{display:block;border:1px solid var(--line);border-radius:12px;padding:16px 18px;text-decoration:none;color:var(--ink);background:#fff;transition:border-color .12s}
-.tools a:hover{border-color:var(--accent)}
-.tools a b{display:block;font-size:1rem;margin-bottom:3px}
-.tools a span{color:var(--muted);font-size:.88rem}
-.soon{list-style:none;padding:0;margin:10px 0 0;color:var(--muted);font-size:.9rem}
+.tools a{display:block;border:1px solid var(--rule);border-radius:3px;padding:15px 17px;
+  text-decoration:none;color:var(--ink);background:#fff;transition:border-color .12s,transform .12s}
+.tools a:hover{border-color:var(--accent);transform:translateY(-1px)}
+.tools a b{display:block;font-size:.98rem;margin-bottom:3px}
+.tools a span{color:var(--muted);font-size:.86rem}
+.soon{list-style:none;padding:0;margin:12px 0 0;color:var(--muted);font-size:.88rem}
 .soon li{padding:3px 0 3px 1.1em;text-indent:-1.1em}
-.soon li::before{content:"◦ ";color:var(--accent);font-family:var(--mono)}
-
-/* trust strip / byline / notes */
-.trust{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:24px 0;font-size:.92rem}
-.trust b{color:var(--accent-ink)}
-.byline{font-size:.82rem;color:var(--muted);margin:20px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
-.note{border-left:3px solid var(--accent);padding:4px 0 4px 14px;color:var(--muted);margin:14px 0}
+.soon li::before{content:"\00b7 ";color:var(--pencil);font-family:var(--mono)}
+.trust{background:#fff;border:1px solid var(--rule);border-left:2px solid var(--accent);
+  border-radius:2px;padding:15px 17px;margin:24px 0;font-size:.92rem}
 dl.qa dt{font-weight:600;margin-top:16px}
 dl.qa dd{margin:4px 0 0;color:var(--muted)}
 
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* the instrument card — sharp, with two registration ticks */
+.tool{position:relative;border:1px solid var(--rule);border-radius:3px;background:#fff;
+  padding:24px;margin-bottom:4px}
+.tool::before,.tool::after{content:"";position:absolute;width:11px;height:11px;
+  border:2px solid var(--pencil);opacity:.5}
+.tool::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.tool::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+.field label{display:block;font-family:var(--mono);font-size:.68rem;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:3px;background:#fff;color:var(--ink);
+  font-family:var(--mono);font-size:.98rem;font-variant-numeric:tabular-nums}
+.field select{font-family:var(--sans)}
+.field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.field .hint{font-size:.72rem;color:var(--muted);margin-top:5px;line-height:1.45}
+.optional{margin-top:20px;border-top:1px solid var(--hair);padding-top:18px}
+.optional .cap{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+
+/* the readout: an instrument face with a ruled scale along its top edge */
+.readout{position:relative;margin-top:22px;background:var(--panel);border-radius:3px;
+  padding:24px 22px 20px;color:#c3ccd4;overflow:hidden}
+.readout::before{content:"";position:absolute;top:0;left:0;right:0;height:7px;
+  background-image:repeating-linear-gradient(90deg,rgba(127,227,196,.42) 0 1px,transparent 1px 11px);
+  opacity:.55}
+.readout .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;
+  text-transform:uppercase;color:#7d8a96;margin-top:4px}
+.readout .v{font-family:var(--mono);font-size:clamp(1.85rem,6.2vw,2.7rem);
+  color:var(--phosphor);font-weight:600;margin-top:6px;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.readout .v.warn{color:var(--warn)}
+.readout .v.neg{color:var(--loss)}
+.readout .sub{font-family:var(--mono);font-size:.82rem;color:#8d99a5;margin-top:10px;
+  font-variant-numeric:tabular-nums}
+.rows{margin-top:18px;border-top:1px solid #202b33;padding-top:15px;display:grid;gap:9px}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+  font-family:var(--mono);font-size:.83rem;color:#8d99a5;font-variant-numeric:tabular-nums}
+.row b{color:#dbe4ec;font-weight:600}
+.verdict{margin-top:15px;font-family:var(--mono);font-size:.82rem;padding:11px 13px;
+  border-radius:2px;background:#131c23;color:#8d99a5;border-left:2px solid #2a3740}
+.verdict.good{color:var(--phosphor);border-left-color:var(--phosphor)}
+.verdict.bad{color:var(--loss);border-left-color:var(--loss)}
+@media(max-width:560px){
+  .readout{padding:20px 16px 18px}
+  .row{font-size:.78rem;gap:8px}
+  .row span{flex:1 1 auto;min-width:0}
+  .row b{flex:0 0 auto;white-space:nowrap}
+}
+
+/* charts (IL, funding) — hand-rolled inline SVG, no library */
+.chartwrap{margin-top:20px;border:1px solid var(--rule);border-radius:3px;background:#fff;
+  padding:17px 15px 10px}
+.chartwrap h3{margin:0 0 3px;font-size:.93rem;letter-spacing:-.01em}
+.chartwrap .cap{font-size:.78rem;color:var(--muted);margin:0 0 12px}
+.chart{display:block;width:100%;height:auto}
+.chart .grid{stroke:var(--hair);stroke-width:1}
+.chart .axis{stroke:#c3c9c7;stroke-width:1}
+.chart .tick{fill:var(--muted);font-family:var(--mono);font-size:9px}
+.chart .zero{stroke:#b6bcba;stroke-width:1}
+.chart .band{fill:var(--accent);opacity:.07}
+.chart .bandedge,.chart .beline{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:.55}
+.chart .hodl{fill:none;stroke:#9aa3ad;stroke-width:2}
+.chart .lp,.chart .carry{fill:none;stroke:var(--accent);stroke-width:2.5}
+.chart .feeline{stroke:var(--loss);stroke-width:2;stroke-dasharray:5 4}
+.chart .marker{fill:var(--panel);stroke:#fff;stroke-width:2}
+.chart .mline{stroke:var(--panel);stroke-width:1;stroke-dasharray:2 3;opacity:.45}
+.chart .lbl{font-family:var(--sans);font-size:10px;font-weight:600}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.75rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:16px;height:2.5px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.legend .k1{background:var(--accent)} .legend .k2{background:#9aa3ad}
+.legend .k3{background:var(--accent);opacity:.25;height:9px;border-radius:2px}
+
+/* prose */
+section.copy{margin:40px 0}
+section.copy h2{position:relative;font-size:1.16rem;letter-spacing:-.015em;margin:0 0 12px;
+  padding-left:16px;font-weight:660}
+section.copy h2::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:2px;background:var(--accent)}
+section.copy p{max-width:64ch}
+
+/* a worked equation, boxed on its own ruled grid */
+.formula{font-family:var(--mono);font-size:.88rem;line-height:1.95;color:var(--ink);
+  border:1px solid var(--rule);border-left:2px solid var(--accent);border-radius:2px;
+  padding:14px 16px;overflow-x:auto;background-color:#fff;
+  background-image:linear-gradient(rgba(17,22,27,.035) 1px,transparent 1px);
+  background-size:100% 22px}
+.note{border-left:2px solid var(--pencil);padding:2px 0 2px 14px;color:var(--muted);
+  margin:16px 0;font-size:.95rem}
+
+details{border-top:1px solid var(--hair);padding:14px 0}
+details summary{cursor:pointer;font-weight:600;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+ ";color:var(--accent);font-family:var(--mono)}
+details[open] summary::before{content:"\2212 "}
+details p{margin:.6em 0 0;color:var(--muted)}
+
+.risk{background:#fdf8ec;border:1px solid #ead9b0;border-left:2px solid var(--warn);
+  border-radius:2px;padding:14px 16px;font-size:.89rem;margin:28px 0}
+.byline{font-size:.8rem;color:var(--muted);margin:22px 0;padding:13px 15px;
+  border:1px dashed var(--rule);border-radius:2px;background:#fff}
+.ad{border:1px dashed var(--rule);border-radius:2px;padding:15px;text-align:center;
+  color:#a9b0b5;font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;margin:28px 0}
+
+.related{margin:36px 0}
+.related h2{font-size:.7rem;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 14px;font-weight:600}
+.related ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.related ul{grid-template-columns:1fr}}
+.related a{display:block;border:1px solid var(--rule);border-radius:3px;padding:13px 15px;
+  text-decoration:none;color:var(--ink);font-size:.9rem;background:#fff;
+  transition:border-color .12s,transform .12s}
+.related a:hover{border-color:var(--accent);transform:translateY(-1px)}
+.related a b{color:var(--accent-ink);display:block;margin-bottom:2px}
+
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.related a,.tools a{transition:none}}
+
+/* ============================================================================
+   THE WORKED SOLUTION — folded away by default.
+   Most visitors arrived from a search box and want one number, so the working
+   must not stand between them and the answer. It sits under a disclosure
+   instead: offered, never imposed. Paradoxically that reads as *more* candid
+   than forcing it on the page — nothing is hidden, it is simply not shouted.
+   The red margin rule finally earns its keep, because the step numbers live in
+   the gutter, exactly where they would on a sheet of hand-worked calculations.
+   Tokens taken straight from an input carry a dotted underline; on a pointer
+   device, focusing that input lights them up. On touch, the underline alone
+   does the work — the link is a bonus, never load-bearing.
+   ============================================================================ */
+.work{margin-top:18px;border-top:1px solid var(--hair);padding-top:6px}
+.work>summary{cursor:pointer;list-style:none;padding:8px 0;
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted)}
+.work>summary::-webkit-details-marker{display:none}
+.work>summary::before{content:"+ ";color:var(--accent)}
+.work[open]>summary::before{content:"\2212 "}
+.work>summary:hover{color:var(--accent-ink)}
+.work>summary .aside{text-transform:none;letter-spacing:0;font-family:var(--sans);
+  font-size:.76rem;color:#8b949a;margin-left:8px}
+@media(max-width:560px){.work>summary .aside{display:none}}
+
+.work .symbolic{font-family:var(--mono);font-size:.82rem;color:var(--muted);
+  margin:6px 0 10px;overflow-x:auto;white-space:nowrap;padding-bottom:2px}
+.work .symbolic b{color:var(--ink);font-weight:600}
+
+ol.steps{list-style:none;counter-reset:step;margin:0;padding:0}
+ol.steps li{counter-increment:step;position:relative;padding:9px 0 9px 34px;
+  border-bottom:1px dashed var(--hair)}
+ol.steps li:last-child{border-bottom:0;padding-bottom:4px}
+ol.steps li::before{content:counter(step);position:absolute;left:0;top:10px;
+  width:21px;height:18px;line-height:17px;text-align:center;
+  font-family:var(--mono);font-size:.64rem;color:var(--pencil);
+  border:1px solid rgba(177,64,47,.38);border-radius:2px}
+.step-lbl{display:block;font-size:.72rem;color:var(--muted);margin-bottom:4px}
+.expr{display:block;font-family:var(--mono);font-size:.85rem;color:var(--ink);
+  font-variant-numeric:tabular-nums;overflow-x:auto;white-space:nowrap;padding-bottom:1px}
+.expr .op{color:var(--muted);padding:0 .18em}
+.expr .res{color:var(--accent-ink);font-weight:700}
+.expr .res.bad{color:var(--pencil)}
+ol.steps li:last-child .expr{font-size:.93rem}
+
+.tok{font-weight:600;border-bottom:1px dotted var(--accent);padding:0 1px;
+  border-radius:2px;transition:background-color .12s}
+.tok.hl{background:rgba(14,90,95,.14)}
+.field input.hl-src,.field select.hl-src{outline:2px solid var(--accent);outline-offset:1px;
+  border-color:transparent}
+
+.work .why{margin:12px 0 2px;font-size:.82rem;color:var(--muted);
+  border-left:2px solid var(--pencil);padding-left:12px}
+
+@media(max-width:560px){
+  ol.steps li{padding-left:30px}
+  .expr{font-size:.79rem}
+  ol.steps li:last-child .expr{font-size:.86rem}
+}
+@media(prefers-reduced-motion:reduce){.tok{transition:none}}
