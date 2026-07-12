@@ -157,6 +157,18 @@
       <div class="verdict" id="verdict">&mdash;</div>
     </div>
 
+    <!-- The working: offered, not imposed. Answer first, derivation folded away. -->
+    <details class="work">
+      <summary>The working<span class="aside">the breakeven APR, derived</span></summary>
+      <div class="symbolic" id="ilsym"></div>
+      <ol class="steps">
+        <li><span class="step-lbl" id="ilb1"></span><span class="expr" id="ils1"></span></li>
+        <li><span class="step-lbl" id="ilb2"></span><span class="expr" id="ils2"></span></li>
+        <li><span class="step-lbl" id="ilb3"></span><span class="expr" id="ils3"></span></li>
+      </ol>
+      <p class="why" id="ilwhy"></p>
+    </details>
+
     <!-- CHART. Plain SVG, drawn from the same maths as the readout. viewBox is
          fixed at 700x300 and scales to the container, so it works on phones. -->
     <div class="chartwrap">
@@ -242,8 +254,6 @@
     <h2>Related calculators</h2>
     <ul>
       <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included</a></li>
-      <li><a href="/position-size-calculator/"><b>Position size</b> &mdash; risk-based sizing, and whether your stop beats liquidation</a></li>
-      <li><a href="/funding-rate-calculator/"><b>Funding rate</b> &mdash; carry cost of a perp as APR/APY, with fee breakeven</a></li>
       <li><a href="/compound-interest-calculator/"><b>Compound interest</b> &mdash; growth with regular contributions</a></li>
     </ul>
   </nav>
@@ -273,6 +283,13 @@
       rHodl=document.getElementById("rHodl"), rLp=document.getElementById("rLp"),
       rFees=document.getElementById("rFees"), rTotal=document.getElementById("rTotal"),
       rBe=document.getElementById("rBe"), verdict=document.getElementById("verdict");
+  var ilsym=document.getElementById("ilsym"), ilwhy=document.getElementById("ilwhy"),
+      ilS=[1,2,3].map(function(n){return {e:document.getElementById("ils"+n),
+                                          l:document.getElementById("ilb"+n)};});
+  var num6=new Intl.NumberFormat("en-US",{maximumFractionDigits:6,minimumFractionDigits:6});
+  function ilTok(v,src){return '<span class="tok tok-'+src+'">'+v+'</span>';}
+  function ilOp(o){return '<span class="op">'+o+'</span>';}
+  function ilRes(v){return '<span class="res">'+v+'</span>';}
   var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
   function pct(x,d){return (x*100).toFixed(d===undefined?2:d)+"%";}
 
@@ -322,7 +339,39 @@
         " — pool APR " + pct(apr,1) + " is below the " + pct(be,2) + " breakeven.";
     }
 
+    renderWork(V0, cA, cB, days, r, IL, req, be);
     drawChart(V0, days, apr);
+  }
+
+  /* The worked solution: the same IL and breakeven numbers as the readout,
+     shown as a hand-derivation with the user's inputs substituted. */
+  function renderWork(V0, cA, cB, days, r, IL, req, be){
+    var MINUS="\u2212", TIMES="\u00d7", DIV="\u00f7", RT="\u221a";
+    ilsym.innerHTML = "breakeven APR" + ilOp("=") +
+      "(1" + ilOp(DIV) + "(1+<b>IL</b>)" + ilOp(MINUS) + "1)" + ilOp(TIMES) +
+      "365" + ilOp(DIV) + "days";
+
+    // Step 1 — impermanent loss from the price ratio
+    ilS[0].l.textContent = "Impermanent loss from the price ratio";
+    ilS[0].e.innerHTML = "2" + RT + ilTok(r.toFixed(4),"r") + ilOp(DIV) +
+      "(1+" + ilTok(r.toFixed(4),"r") + ")" + ilOp(MINUS) + "1" +
+      ilOp("=") + ilRes(pct(IL,3));
+
+    // Step 2 — fee yield needed over the holding period
+    ilS[1].l.textContent = "Fee yield needed to cancel it";
+    ilS[1].e.innerHTML = "1" + ilOp(DIV) + "(1" + MINUS + num6.format(Math.abs(IL)) + ")" +
+      ilOp(MINUS) + "1" + ilOp("=") + ilRes(pct(req,3));
+
+    // Step 3 — annualise to a breakeven APR
+    ilS[2].l.textContent = "Annualised to a breakeven APR";
+    ilS[2].e.innerHTML = num6.format(req) + ilOp(TIMES) + "365" + ilOp(DIV) +
+      ilTok(String(days),"days") + ilOp("=") + ilRes(isFinite(be)?pct(be,2):"\u2014");
+
+    if(Math.abs(r-1)<1e-12){
+      ilwhy.textContent = "With no price divergence there is no loss to recover, so any fee income is pure profit and the breakeven APR is zero.";
+    } else {
+      ilwhy.textContent = "Above this APR the pool's fees more than cover the impermanent loss and LPing beats holding; below it, holding wins. A shorter hold needs a higher APR, because the same loss must be earned back in less time.";
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -427,6 +476,14 @@
     }
   }
 
+  [["ca","r"],["cb","r"],["days","days"]].forEach(function(pair){
+    var input=el[pair[0]], cls=pair[1];
+    function toks(){return document.querySelectorAll(".tok-"+cls);}
+    function on(){toks().forEach(function(t){t.classList.add("hl");});}
+    function off(){toks().forEach(function(t){t.classList.remove("hl");});}
+    input.addEventListener("focus",on); input.addEventListener("blur",off);
+    input.addEventListener("mouseenter",on); input.addEventListener("mouseleave",off);
+  });
   ids.forEach(function(i){el[i].addEventListener("input",calc);});
   calc();
 })();
