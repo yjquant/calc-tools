@@ -170,6 +170,18 @@
       </div>
       <div class="verdict" id="verdict">&mdash;</div>
     </div>
+
+    <details class="work">
+      <summary>The working<span class="aside">size, then the safety limit</span></summary>
+      <div class="symbolic" id="psym"></div>
+      <ol class="steps">
+        <li><span class="step-lbl" id="plb1"></span><span class="expr" id="pls1"></span></li>
+        <li><span class="step-lbl" id="plb2"></span><span class="expr" id="pls2"></span></li>
+        <li><span class="step-lbl" id="plb3"></span><span class="expr" id="pls3"></span></li>
+        <li><span class="step-lbl" id="plb4"></span><span class="expr" id="pls4"></span></li>
+      </ol>
+      <p class="why" id="pwhy"></p>
+    </details>
   </div>
 
   <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
@@ -233,7 +245,6 @@
     <ul>
       <li><a href="/liquidation-price-calculator/"><b>Liquidation price</b> &mdash; isolated margin, fees included</a></li>
       <li><a href="/impermanent-loss-calculator/"><b>Impermanent loss</b> &mdash; LP vs holding, with the fee APR to break even</a></li>
-      <li><a href="/funding-rate-calculator/"><b>Funding rate</b> &mdash; carry cost of a perp as APR/APY, with fee breakeven</a></li>
     </ul>
   </nav>
 </div>
@@ -263,6 +274,39 @@
       rRisk=document.getElementById("rRisk"), rMargin=document.getElementById("rMargin"),
       rLiq=document.getElementById("rLiq"), rDist=document.getElementById("rDist"),
       rLmax=document.getElementById("rLmax"), verdict=document.getElementById("verdict");
+  var psym=document.getElementById("psym"), pwhy=document.getElementById("pwhy"),
+      pS=[1,2,3,4].map(function(n){return {e:document.getElementById("pls"+n),
+                                           l:document.getElementById("plb"+n)};});
+  var pnum=new Intl.NumberFormat("en-US",{maximumFractionDigits:2});
+  function pTok(v,src){return '<span class="tok tok-'+src+'">'+v+'</span>';}
+  function pOp(o){return '<span class="op">'+o+'</span>';}
+  function pRes(v){return '<span class="res">'+v+'</span>';}
+  function pClear(){pS.forEach(function(x){x.e.innerHTML="";x.l.textContent="";});psym.innerHTML="";pwhy.textContent="";}
+  function pWork(bal,risk,isLong,E,S,fee,mmr,riskAmt,lossPerUnit,notional,lmax){
+    var MINUS="\u2212",TIMES="\u00d7",DIV="\u00f7";
+    psym.innerHTML="qty"+pOp("=")+"(balance"+pOp(TIMES)+"risk)"+pOp(DIV)+"loss/unit"+
+      pOp("\u2003")+"L\u2098\u2090\u2093"+pOp("=")+"1"+pOp(DIV)+"(1+fee"+MINUS+"(stop/entry)(1"+MINUS+"mmr))";
+    pS[0].l.textContent="Risk budget";
+    pS[0].e.innerHTML=pTok(pnum.format(bal),"bal")+pOp(TIMES)+pTok((risk*100).toFixed(2)+"%","risk")+
+      pOp("=")+pRes(money.format(riskAmt));
+    pS[1].l.textContent="Loss per unit (move + fees)";
+    pS[1].e.innerHTML="|"+pTok(pnum.format(E),"entry")+MINUS+pTok(pnum.format(S),"stop")+"|"+
+      pOp("+")+pTok((fee*100).toFixed(3)+"%","fee")+pOp(TIMES)+pnum.format(E)+
+      pOp("=")+pRes(money.format(lossPerUnit));
+    pS[2].l.textContent="Position size";
+    pS[2].e.innerHTML=money.format(riskAmt)+pOp(DIV)+money.format(lossPerUnit)+pOp(TIMES)+pnum.format(E)+
+      pOp("=")+pRes(money.format(notional));
+    pS[3].l.textContent="Max leverage before liquidation beats the stop";
+    if(lmax===null){
+      pS[3].e.innerHTML=pRes("\u2014");
+      pwhy.textContent="With the stop on the wrong side of entry there is no leverage ceiling to compute.";
+    } else {
+      pS[3].e.innerHTML="1"+pOp(DIV)+"(1+"+pTok((fee*100).toFixed(3)+"%","fee")+MINUS+"("+
+        pTok(pnum.format(S),"stop")+DIV+pTok(pnum.format(E),"entry")+")(1"+MINUS+
+        pTok((mmr*100).toFixed(2)+"%","mmr")+"))"+pOp("=")+pRes(lmax.toFixed(2)+"x");
+      pwhy.textContent="Steps 1\u20133 size the trade so a stop-out costs exactly your risk budget. Step 4 is the catch other calculators miss: above "+lmax.toFixed(2)+"x the liquidation price sits inside your stop, so you are closed out first and the risk figure is fiction.";
+    }
+  }
   var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
 
   function liqPrice(E,L,mmr,isLong,fee){
@@ -280,6 +324,7 @@
   }
 
   function blank(msg){
+    if(typeof pClear==="function") pClear();
     out.textContent="—"; sub.textContent=msg;
     [rRisk,rMargin,rLiq,rDist,rLmax].forEach(function(n){n.textContent="—";});
     verdict.textContent="—"; verdict.classList.remove("good","bad");
@@ -306,6 +351,7 @@
 
     var liq=liqPrice(E,L,mmr,isLong,fee);
     var lmax=maxSafeLeverage(E,S,mmr,isLong,fee);
+    pWork(bal,risk,isLong,E,S,fee,mmr,riskAmt,lossPerUnit,notional,lmax);
 
     // headline: notional, with quantity underneath
     out.textContent=money.format(notional);
@@ -335,6 +381,14 @@
       verdict.textContent = "Stop fires before liquidation.";
     }
   }
+  [["bal","bal"],["risk","risk"],["entry","entry"],["stop","stop"],["fee","fee"],["mmr","mmr"]].forEach(function(pr){
+    var inp=el[pr[0]],cls=pr[1];
+    function tks(){return document.querySelectorAll(".tok-"+cls);}
+    function on(){tks().forEach(function(t){t.classList.add("hl");});}
+    function off(){tks().forEach(function(t){t.classList.remove("hl");});}
+    inp.addEventListener("focus",on);inp.addEventListener("blur",off);
+    inp.addEventListener("mouseenter",on);inp.addEventListener("mouseleave",off);
+  });
   ids.forEach(function(i){el[i].addEventListener("input",calc);});
   calc();
 })();

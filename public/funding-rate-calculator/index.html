@@ -169,6 +169,17 @@
       <div class="verdict" id="verdict">&mdash;</div>
     </div>
 
+    <details class="work">
+      <summary>The working<span class="aside">annualised, and the fee breakeven</span></summary>
+      <div class="symbolic" id="fsym"></div>
+      <ol class="steps">
+        <li><span class="step-lbl" id="flb1"></span><span class="expr" id="fls1"></span></li>
+        <li><span class="step-lbl" id="flb2"></span><span class="expr" id="fls2"></span></li>
+        <li><span class="step-lbl" id="flb3"></span><span class="expr" id="fls3"></span></li>
+      </ol>
+      <p class="why" id="fwhy"></p>
+    </details>
+
     <!-- CHART: cumulative funding against the one-off fee line. -->
     <div class="chartwrap">
       <h3>When the carry repays the toll</h3>
@@ -287,6 +298,38 @@
       rN=document.getElementById("rN"), rPer=document.getElementById("rPer"),
       rFee=document.getElementById("rFee"), rBe=document.getElementById("rBe"),
       verdict=document.getElementById("verdict");
+  var fsym=document.getElementById("fsym"), fwhy=document.getElementById("fwhy"),
+      fS=[1,2,3].map(function(n){return {e:document.getElementById("fls"+n),
+                                         l:document.getElementById("flb"+n)};});
+  function fTok(v,src){return '<span class="tok tok-'+src+'">'+v+'</span>';}
+  function fOp(o){return '<span class="op">'+o+'</span>';}
+  function fRes(v){return '<span class="res">'+v+'</span>';}
+  function fClear(){fS.forEach(function(x){x.e.innerHTML="";x.l.textContent="";});fsym.innerHTML="";fwhy.textContent="";}
+  function fWork(r, iv, ppy, n, days, fee){
+    var MINUS="\u2212",TIMES="\u00d7",DIV="\u00f7";
+    fsym.innerHTML="APR"+fOp("=")+"rate"+fOp(TIMES)+"365"+TIMES+"24"+DIV+"interval"+
+      fOp("\u2003")+"breakeven"+fOp("=")+"fee"+fOp(DIV)+"rate";
+    fS[0].l.textContent="Settlements per year, and over the period";
+    fS[0].e.innerHTML="365"+fOp(TIMES)+"24"+fOp(DIV)+fTok(String(iv),"iv")+fOp("=")+
+      fRes(ppy.toFixed(0)+"/yr")+fOp("\u2003\u00b7\u2003")+fTok(String(days),"days")+
+      fOp(TIMES)+"24"+fOp(DIV)+iv+fOp("=")+fRes(n.toFixed(0));
+    fS[1].l.textContent="Annualised, simple then compounded";
+    fS[1].e.innerHTML=fTok((r*100).toFixed(4)+"%","rate")+fOp(TIMES)+ppy.toFixed(0)+fOp("=")+
+      fRes((r*ppy*100).toFixed(2)+"% APR")+fOp("\u2003")+"(1+"+fTok((r*100).toFixed(4)+"%","rate")+")^"+
+      ppy.toFixed(0)+fOp("=")+fRes((( Math.pow(1+r,ppy)-1)*100).toFixed(2)+"% APY");
+    fS[2].l.textContent="Fee breakeven holding period";
+    if(r>0 && fee>0){
+      var bp=fee/r, bd=bp*iv/24;
+      fS[2].e.innerHTML=fTok((fee*100).toFixed(3)+"%","fee")+fOp(DIV)+fTok((r*100).toFixed(4)+"%","rate")+
+        fOp("=")+fRes(bp.toFixed(0)+" settlements")+fOp("=")+fRes(bd.toFixed(1)+" days");
+      fwhy.textContent="Funding drips in each settlement while the fee is paid once up front, so the trade only clears its costs after "+bd.toFixed(1)+" days. Hold for less and the carry was a fee-paying exercise.";
+    } else {
+      fS[2].e.innerHTML=fRes(r<=0 ? "never \u2014 funding runs against you" : "add a fee to see this");
+      fwhy.textContent = r<=0
+        ? "At this rate your side pays funding rather than collecting it, so there is nothing to repay the fees."
+        : "Enter a round-trip fee to see how long the position must run before the funding covers it.";
+    }
+  }
   var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
   function pct(x,d){return (x*100).toFixed(d===undefined?2:d)+"%";}
 
@@ -364,7 +407,7 @@
     if(N0<=0||days<=0){
       out.textContent="—"; sub.textContent="Enter a position size and a holding period.";
       [rApr,rApy,rN,rPer,rFee,rBe].forEach(function(n){n.textContent="—";});
-      verdict.textContent="—"; drawChart(1,iv,0,0); return;
+      verdict.textContent="—"; fClear(); drawChart(1,iv,0,0); return;
     }
 
     // signed rate from YOUR side: positive rate means longs pay shorts
@@ -375,6 +418,7 @@
     var perSettle = N0*r;
     var total = N0*r*n;                    // simple, position size held constant
     var feeAmt = N0*fee;
+    fWork(r, iv, ppy, n, days, fee);
 
     if(total<0) out.classList.add("neg");
     out.textContent=(total>=0?"+":"") + money.format(total);
@@ -410,6 +454,14 @@
 
     drawChart(days, iv, perSettle, feeAmt);
   }
+  [["rate","rate"],["iv","iv"],["days","days"],["fee","fee"]].forEach(function(pr){
+    var inp=el[pr[0]],cls=pr[1];
+    function tks(){return document.querySelectorAll(".tok-"+cls);}
+    function on(){tks().forEach(function(t){t.classList.add("hl");});}
+    function off(){tks().forEach(function(t){t.classList.remove("hl");});}
+    inp.addEventListener("focus",on);inp.addEventListener("blur",off);
+    inp.addEventListener("mouseenter",on);inp.addEventListener("mouseleave",off);
+  });
   ids.forEach(function(i){el[i].addEventListener("input",calc);});
   calc();
 })();

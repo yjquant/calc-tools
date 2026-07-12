@@ -150,6 +150,17 @@
       <div class="v" id="out">$0</div>
       <div class="sub" id="sub">—</div>
     </div>
+
+    <details class="work">
+      <summary>The working<span class="aside">your numbers, substituted</span></summary>
+      <div class="symbolic" id="lsym"></div>
+      <ol class="steps">
+        <li><span class="step-lbl" id="llb1"></span><span class="expr" id="lls1"></span></li>
+        <li><span class="step-lbl" id="llb2"></span><span class="expr" id="lls2"></span></li>
+        <li><span class="step-lbl" id="llb3"></span><span class="expr" id="lls3"></span></li>
+      </ol>
+      <p class="why" id="lwhy"></p>
+    </details>
   </div>
 
   <div class="ad">Ad slot &middot; replace with AdSense unit after approval</div>
@@ -237,6 +248,35 @@
   var el={}, ids=["dir","e","l","m","sz","fee"];
   ids.forEach(function(i){el[i]=document.getElementById(i);});
   var out=document.getElementById("out"), sub=document.getElementById("sub");
+  var lsym=document.getElementById("lsym"), lwhy=document.getElementById("lwhy"),
+      lS=[1,2,3].map(function(n){return {e:document.getElementById("lls"+n),
+                                         l:document.getElementById("llb"+n)};});
+  var lnum=new Intl.NumberFormat("en-US",{maximumFractionDigits:6,minimumFractionDigits:6});
+  var lpl=new Intl.NumberFormat("en-US",{maximumFractionDigits:2});
+  function lTok(v,src){return '<span class="tok tok-'+src+'">'+v+'</span>';}
+  function lOp(o){return '<span class="op">'+o+'</span>';}
+  function lRes(v,bad){return '<span class="res'+(bad?' bad':'')+'">'+v+'</span>';}
+  function lWork(dir,E,L,mmr,fee){
+    var MINUS="\u2212",TIMES="\u00d7",DIV="\u00f7",isLong=dir==="long";
+    lsym.innerHTML="liq"+lOp("=")+"<b>entry</b>"+lOp(TIMES)+"(1"+lOp(isLong?MINUS:"+")+
+      "1/leverage"+lOp(isLong?"+":MINUS)+"fee)"+lOp(DIV)+"(1"+lOp(isLong?MINUS:"+")+"mmr)";
+    var buf=isLong?(1-1/L+fee):(1+1/L-fee), div=isLong?(1-mmr):(1+mmr), bad=isLong&&(buf<=0||mmr>=1);
+    lS[0].l.textContent="Price buffer, after fees";
+    lS[0].e.innerHTML="1"+lOp(isLong?MINUS:"+")+"1"+lOp(DIV)+lTok(lpl.format(L),"l")+
+      lOp(isLong?"+":MINUS)+lTok(lnum.format(fee),"fee")+lOp("=")+lRes(lnum.format(buf),bad);
+    lS[1].l.textContent="Maintenance divisor";
+    lS[1].e.innerHTML="1"+lOp(isLong?MINUS:"+")+lTok(lnum.format(mmr),"m")+lOp("=")+lRes(lnum.format(div));
+    if(bad){
+      lS[2].l.textContent="Liquidation price";
+      lS[2].e.innerHTML=lRes("none \u2014 the buffer is not positive",true);
+      lwhy.textContent="Step 1 is zero or negative, so price alone can never take the equity down to the maintenance requirement. There is no liquidation price to report, and printing one anyway would be a lie.";
+      return;
+    }
+    var liq=E*buf/div; if(liq<0)liq=0; var f=Math.abs(liq/E-1);
+    lS[2].l.textContent="Liquidation price";
+    lS[2].e.innerHTML=lTok(lpl.format(E),"e")+lOp(TIMES)+lnum.format(buf)+lOp(DIV)+lnum.format(div)+lOp("=")+lRes(money.format(liq));
+    lwhy.textContent="A "+(f*100).toFixed(2)+"% adverse move wipes the margin down to the "+(mmr*100).toFixed(2)+"% the exchange insists you keep. Raise the leverage and step 1 shrinks, pulling liquidation toward your entry.";
+  }
   var money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
 
   function calc(){
@@ -244,7 +284,9 @@
         mmr=(+el.m.value||0)/100, fee=(+el.fee.value||0)/100, sz=+el.sz.value||0;
 
     out.classList.remove("warn");
-    if(E<=0||L<1){ out.textContent="—"; sub.textContent="Enter an entry price and leverage of 1 or more."; return; }
+    if(E<=0||L<1){ out.textContent="—"; sub.textContent="Enter an entry price and leverage of 1 or more.";
+      lS.forEach(function(x){x.e.innerHTML="";x.l.textContent="";}); lsym.innerHTML=""; lwhy.textContent=""; return; }
+    lWork(dir,E,L,mmr,fee);
 
     var liq;
     if(dir==="long"){
@@ -267,6 +309,14 @@
     var marginTxt = sz>0 ? "  ·  Initial margin "+money.format(sz/L) : "";
     sub.textContent=moveTxt+marginTxt;
   }
+  [["e","e"],["l","l"],["m","m"],["fee","fee"]].forEach(function(pr){
+    var inp=el[pr[0]],cls=pr[1];
+    function tks(){return document.querySelectorAll(".tok-"+cls);}
+    function on(){tks().forEach(function(t){t.classList.add("hl");});}
+    function off(){tks().forEach(function(t){t.classList.remove("hl");});}
+    inp.addEventListener("focus",on);inp.addEventListener("blur",off);
+    inp.addEventListener("mouseenter",on);inp.addEventListener("mouseleave",off);
+  });
   ids.forEach(function(i){el[i].addEventListener("input",calc);});
   calc();
 })();
